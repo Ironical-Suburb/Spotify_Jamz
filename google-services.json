@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "76923458824",
+    "project_id": "spotifyjamsesh",
+    "storage_bucket": "spotifyjamsesh.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76923458824:android:08ecbb2f9d0625f8dc08bd",
+        "android_client_info": {
+          "package_name": "com.yourname.spotifyjamsesh"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYSUQ16NV5_2ZAqZxvYZNu_LDgIG6xg9M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
