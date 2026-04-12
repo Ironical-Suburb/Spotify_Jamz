@@ -1,4 +1,4 @@
-# 🎵 Spotify Jam Sesh
+# Spotify Jam Sesh
 
 Listen to the same Spotify song with friends and strangers in real time — no shared network required.
 
