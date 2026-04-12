@@ -3,13 +3,14 @@ import {
   View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,
   Image, ActivityIndicator, Alert,
 } from "react-native";
-import { searchTracks, playTrack } from "@services/spotify";
+import { searchTracks } from "@services/spotify";
 import { useAuth } from "@hooks/useAuth";
+import { useRoomContext } from "@hooks/useRoomContext";
 import { COLORS } from "@constants";
 
 export default function SearchScreen({ route, navigation }) {
-  const { roomCode, broadcastPlayback } = route.params;
   const { spotifyToken } = useAuth();
+  const { broadcastRef } = useRoomContext();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,27 +30,25 @@ export default function SearchScreen({ route, navigation }) {
 
   const handleSelectTrack = async (track) => {
     try {
-      // Play on host's Spotify
-      await playTrack(track.uri, 0, spotifyToken);
-
-      // Broadcast to room
-      broadcastPlayback({
-        trackUri: track.uri,
-        trackName: track.name,
-        artistName: track.artists.map((a) => a.name).join(", "),
-        albumArt: track.album.images[0]?.url ?? null,
-        isPlaying: true,
-        positionMs: 0,
-      });
-
+      if (broadcastRef.current) {
+        broadcastRef.current({
+          trackUri: track.uri,
+          trackName: track.name,
+          artistName: track.artists.map((a) => a.name).join(", "),
+          albumArt: track.album.images[0]?.url ?? null,
+          isPlaying: true,
+          positionMs: 0,
+        });
+      }
       navigation.goBack();
     } catch (e) {
-      Alert.alert("Playback error", e.message);
+      Alert.alert("Error", e.message);
     }
   };
 
   return (
     <View style={styles.container}>
+
       <View style={styles.searchRow}>
         <TextInput
           style={styles.input}
@@ -65,18 +64,28 @@ export default function SearchScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {loading && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 32 }} />}
+      {loading && (
+        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 32 }} />
+      )}
 
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.trackRow} onPress={() => handleSelectTrack(item)}>
+          <TouchableOpacity
+            style={styles.trackRow}
+            onPress={() => handleSelectTrack(item)}
+          >
             {item.album.images[1] && (
-              <Image source={{ uri: item.album.images[1].url }} style={styles.thumb} />
+              <Image
+                source={{ uri: item.album.images[1].url }}
+                style={styles.thumb}
+              />
             )}
             <View style={styles.trackInfo}>
-              <Text style={styles.trackName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.trackName} numberOfLines={1}>
+                {item.name}
+              </Text>
               <Text style={styles.artistName} numberOfLines={1}>
                 {item.artists.map((a) => a.name).join(", ")}
               </Text>
@@ -85,14 +94,22 @@ export default function SearchScreen({ route, navigation }) {
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: COLORS.background, padding: 16 },
-  searchRow:      { flexDirection: "row", marginBottom: 16 },
-  input:          {
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 16,
+  },
+  searchRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  input: {
     flex: 1,
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
@@ -101,17 +118,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginRight: 8,
   },
-  searchBtn:      {
+  searchBtn: {
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingHorizontal: 18,
     justifyContent: "center",
   },
-  searchBtnText:  { color: COLORS.background, fontWeight: "bold" },
-  trackRow:       { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
-  thumb:          { width: 52, height: 52, borderRadius: 6, marginRight: 12 },
-  trackInfo:      { flex: 1 },
-  trackName:      { color: COLORS.textPrimary, fontWeight: "bold", fontSize: 15 },
-  artistName:     { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
-  separator:      { height: 1, backgroundColor: COLORS.surfaceAlt },
+  searchBtnText: {
+    color: COLORS.background,
+    fontWeight: "bold",
+  },
+  trackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  thumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  trackInfo: {
+    flex: 1,
+  },
+  trackName: {
+    color: COLORS.textPrimary,
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+  artistName: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.surfaceAlt,
+  },
 });

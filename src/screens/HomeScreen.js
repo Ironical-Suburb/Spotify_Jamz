@@ -7,7 +7,7 @@ import { useAuth } from "@hooks/useAuth";
 import { COLORS } from "@constants";
 
 export default function HomeScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [roomCode, setRoomCode] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,6 +47,12 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+
+      {/* Switch Account */}
+      <TouchableOpacity style={styles.switchBtn} onPress={logout}>
+        <Text style={styles.switchText}>⇄ Switch Spotify Account</Text>
+      </TouchableOpacity>
+
       <Text style={styles.heading}>Who are you?</Text>
       <TextInput
         style={styles.input}
@@ -60,7 +66,9 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.divider} />
 
       <TouchableOpacity style={styles.primaryBtn} onPress={handleCreate} disabled={loading}>
-        {loading ? <ActivityIndicator color={COLORS.background} /> : (
+        {loading ? (
+          <ActivityIndicator color={COLORS.background} />
+        ) : (
           <Text style={styles.primaryBtnText}>🎵 Create a Room</Text>
         )}
       </TouchableOpacity>
@@ -80,14 +88,34 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity style={styles.secondaryBtn} onPress={handleJoin} disabled={loading}>
         <Text style={styles.secondaryBtnText}>Join Room</Text>
       </TouchableOpacity>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: COLORS.background, padding: 24, justifyContent: "center" },
-  heading:        { fontSize: 22, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 16 },
-  input:          {
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 24,
+    justifyContent: "center",
+  },
+  switchBtn: {
+    alignSelf: "flex-end",
+    padding: 8,
+    marginBottom: 16,
+  },
+  switchText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: COLORS.textPrimary,
+    marginBottom: 16,
+  },
+  input: {
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
     borderRadius: 12,
@@ -95,23 +123,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
   },
-  codeInput:      { letterSpacing: 8, textAlign: "center", fontSize: 22, fontWeight: "bold" },
-  divider:        { height: 1, backgroundColor: COLORS.surfaceAlt, marginVertical: 24 },
-  primaryBtn:     {
+  codeInput: {
+    letterSpacing: 8,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.surfaceAlt,
+    marginVertical: 24,
+  },
+  primaryBtn: {
     backgroundColor: COLORS.primary,
     borderRadius: 50,
     padding: 16,
     alignItems: "center",
     marginBottom: 20,
   },
-  primaryBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 16 },
-  orText:         { color: COLORS.textMuted, textAlign: "center", marginBottom: 20 },
-  secondaryBtn:   {
+  primaryBtnText: {
+    color: COLORS.background,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  orText: {
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  secondaryBtn: {
     borderWidth: 2,
     borderColor: COLORS.primary,
     borderRadius: 50,
     padding: 16,
     alignItems: "center",
   },
-  secondaryBtnText: { color: COLORS.primary, fontWeight: "bold", fontSize: 16 },
+  secondaryBtnText: {
+    color: COLORS.primary,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
