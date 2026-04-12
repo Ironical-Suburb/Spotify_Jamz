@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Spotify Jam Sesh",
+    "slug": "spotify-jam-sesh",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1DB954"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.spotifyjamsesh"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1DB954"
+      },
+      "package": "com.yourname.spotifyjamsesh"
+    },
+    "scheme": "spotifyjamsesh",
+    "plugins": [
+      "expo-web-browser",
+      "expo-asset"
+    ]
+  }
+}
