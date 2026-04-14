@@ -13,6 +13,8 @@ import HomeScreen from "@screens/HomeScreen";
 import RoomScreen from "@screens/RoomScreen";
 import SearchScreen from "@screens/SearchScreen";
 import ProfileScreen from "@screens/ProfileScreen";
+import StatsScreen from "@screens/StatsScreen";
+import FriendsScreen from "@screens/FriendsScreen";
 
 const Stack = createStackNavigator();
 
@@ -115,6 +117,16 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Stats"
+              component={StatsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Friends"
+              component={FriendsScreen}
               options={{ headerShown: false }}
             />
           </>

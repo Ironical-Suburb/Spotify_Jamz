@@ -118,3 +118,33 @@ export async function seekTo(positionMs, accessToken) {
     { method: "PUT" }
   );
 }
+
+// ─── Stats APIs ───────────────────────────────────────────────────────────────
+
+/**
+ * Get top artists and tracks for a specific time range.
+ * UI passes "4 Weeks", "6 Months", or "All Time".
+ */
+export async function fetchUserStats(accessToken, timeRange) {
+  const rangeMap = {
+    "4 Weeks": "short_term",
+    "6 Months": "medium_term",
+    "All Time": "long_term"
+  };
+  const spotifyRange = rangeMap[timeRange] || "short_term";
+
+  try {
+    const [artistsData, tracksData] = await Promise.all([
+      spotifyFetch(`/me/top/artists?time_range=${spotifyRange}&limit=5`, accessToken),
+      spotifyFetch(`/me/top/tracks?time_range=${spotifyRange}&limit=5`, accessToken)
+    ]);
+
+    return {
+      artists: artistsData?.items || [],
+      tracks: tracksData?.items || []
+    };
+  } catch (error) {
+    console.error("Error fetching Spotify stats:", error);
+    return { artists: [], tracks: [] };
+  }
+}
