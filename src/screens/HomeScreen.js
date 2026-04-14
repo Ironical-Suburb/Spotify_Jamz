@@ -1,22 +1,25 @@
 import React, { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  Alert, ActivityIndicator, StatusBar,
 } from "react-native";
 import { createRoom, joinRoom } from "@services/roomService";
 import { useAuth } from "@hooks/useAuth";
+import { useProfile } from "@hooks/useProfile";
 import { COLORS } from "@constants";
 
 export default function HomeScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const [roomCode, setRoomCode] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const displayName = profile?.nickname ?? user?.uid?.slice(0, 8) ?? "Listener";
+
   const handleCreate = async () => {
-    if (!displayName.trim()) { Alert.alert("Enter your name first!"); return; }
     setLoading(true);
     try {
-      const code = await createRoom(user.uid, displayName.trim());
+      const code = await createRoom(user.uid, displayName);
       navigation.navigate("Room", { roomCode: code, isHost: true, displayName });
     } catch (e) {
       Alert.alert("Error", e.message);
@@ -26,13 +29,13 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleJoin = async () => {
-    if (!roomCode.trim() || !displayName.trim()) {
-      Alert.alert("Enter both your name and a room code.");
+    if (!roomCode.trim()) {
+      Alert.alert("Enter a room code to join.");
       return;
     }
     setLoading(true);
     try {
-      await joinRoom(roomCode.trim().toUpperCase(), user.uid, displayName.trim());
+      await joinRoom(roomCode.trim().toUpperCase(), user.uid, displayName);
       navigation.navigate("Room", {
         roomCode: roomCode.trim().toUpperCase(),
         isHost: false,
@@ -47,47 +50,89 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
-      {/* Switch Account */}
-      <TouchableOpacity style={styles.switchBtn} onPress={logout}>
-        <Text style={styles.switchText}>⇄ Switch Spotify Account</Text>
-      </TouchableOpacity>
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.appName}>Jam Sesh</Text>
+        <TouchableOpacity
+          style={styles.avatarBtn}
+          onPress={() => navigation.navigate("Profile")}
+          activeOpacity={0.8}
+        >
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarEmoji}>{profile?.emoji ?? "🎵"}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.heading}>Who are you?</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Your display name"
-        placeholderTextColor={COLORS.textMuted}
-        value={displayName}
-        onChangeText={setDisplayName}
-        maxLength={24}
-      />
+      {/* Greeting */}
+      <View style={styles.greetingRow}>
+        <Text style={styles.greeting}>Hey, {displayName} 👋</Text>
+        <Text style={styles.greetingSub}>Ready to jam with someone?</Text>
+      </View>
 
-      <View style={styles.divider} />
+      {/* Main actions */}
+      <View style={styles.actions}>
 
-      <TouchableOpacity style={styles.primaryBtn} onPress={handleCreate} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color={COLORS.background} />
-        ) : (
-          <Text style={styles.primaryBtnText}>🎵 Create a Room</Text>
-        )}
-      </TouchableOpacity>
+        {/* Create room card */}
+        <TouchableOpacity
+          style={styles.createCard}
+          onPress={handleCreate}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color={COLORS.background} />
+          ) : (
+            <>
+              <Text style={styles.createCardTitle}>Create a Room</Text>
+              <Text style={styles.createCardSub}>
+                Start a session and share the code
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-      <Text style={styles.orText}>— or join one —</Text>
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or join one</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-      <TextInput
-        style={[styles.input, styles.codeInput]}
-        placeholder="Room code (e.g. X7K2)"
-        placeholderTextColor={COLORS.textMuted}
-        value={roomCode}
-        onChangeText={setRoomCode}
-        autoCapitalize="characters"
-        maxLength={4}
-      />
+        {/* Join room */}
+        <View style={styles.joinCard}>
+          <TextInput
+            style={styles.codeInput}
+            placeholder="Enter room code"
+            placeholderTextColor={COLORS.textMuted}
+            value={roomCode}
+            onChangeText={setRoomCode}
+            autoCapitalize="characters"
+            maxLength={4}
+            returnKeyType="go"
+            onSubmitEditing={handleJoin}
+          />
+          <TouchableOpacity
+            style={[
+              styles.joinBtn,
+              !roomCode.trim() && styles.joinBtnDisabled,
+            ]}
+            onPress={handleJoin}
+            disabled={loading || !roomCode.trim()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.joinBtnText}>Join</Text>
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity style={styles.secondaryBtn} onPress={handleJoin} disabled={loading}>
-        <Text style={styles.secondaryBtnText}>Join Room</Text>
-      </TouchableOpacity>
+      </View>
+
+      {/* Footer */}
+      <Text style={styles.footer}>
+        {profile?.isPublic ? "🌐 Public profile" : "🔒 Private profile"}
+      </Text>
 
     </View>
   );
@@ -97,70 +142,138 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    padding: 24,
-    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingTop: 60,
   },
-  switchBtn: {
-    alignSelf: "flex-end",
-    padding: 8,
-    marginBottom: 16,
-  },
-  switchText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: COLORS.textPrimary,
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: COLORS.surface,
-    color: COLORS.textPrimary,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  codeInput: {
-    letterSpacing: 8,
-    textAlign: "center",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.surfaceAlt,
-    marginVertical: 24,
-  },
-  primaryBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 50,
-    padding: 16,
+
+  // ── Top bar
+  topBar: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "space-between",
+    marginBottom: 40,
   },
-  primaryBtnText: {
-    color: COLORS.background,
-    fontWeight: "bold",
-    fontSize: 16,
+  appName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    letterSpacing: -0.5,
   },
-  orText: {
-    color: COLORS.textMuted,
-    textAlign: "center",
-    marginBottom: 20,
+  avatarBtn: {
+    padding: 2,
   },
-  secondaryBtn: {
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: COLORS.primary,
-    borderRadius: 50,
-    padding: 16,
-    alignItems: "center",
   },
-  secondaryBtnText: {
+  avatarEmoji: {
+    fontSize: 22,
+  },
+
+  // ── Greeting
+  greetingRow: {
+    marginBottom: 48,
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: COLORS.textPrimary,
+    marginBottom: 6,
+  },
+  greetingSub: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+  },
+
+  // ── Actions
+  actions: {
+    flex: 1,
+    justifyContent: "center",
+  },
+
+  // Create card
+  createCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    padding: 28,
+    marginBottom: 32,
+  },
+  createCardTitle: {
+    color: COLORS.background,
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 6,
+  },
+  createCardSub: {
+    color: COLORS.background + "CC",
+    fontSize: 14,
+  },
+
+  // Divider
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 32,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.surfaceAlt,
+  },
+  dividerText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+  },
+
+  // Join card
+  joinCard: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  codeInput: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    color: COLORS.textPrimary,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 20,
+    fontWeight: "bold",
+    letterSpacing: 6,
+    textAlign: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.surfaceAlt,
+  },
+  joinBtn: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  joinBtnDisabled: {
+    borderColor: COLORS.surfaceAlt,
+    opacity: 0.5,
+  },
+  joinBtnText: {
     color: COLORS.primary,
     fontWeight: "bold",
     fontSize: 16,
+  },
+
+  // Footer
+  footer: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textAlign: "center",
+    paddingBottom: 32,
   },
 });

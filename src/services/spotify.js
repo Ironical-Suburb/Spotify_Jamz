@@ -25,7 +25,7 @@ export function useSpotifyAuth() {
       redirectUri,
       responseType: AuthSession.ResponseType.Code,
       extraParams: {
-        show_dialog: "true", // forces account picker every login
+        show_dialog: "true",
       },
     },
     discovery
@@ -54,11 +54,45 @@ async function spotifyFetch(endpoint, accessToken, options = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+// ─── Profile APIs ─────────────────────────────────────────────────────────────
+
+/**
+ * Get the current user's Spotify profile.
+ */
+export async function getMe(accessToken) {
+  return spotifyFetch("/me", accessToken);
+}
+
+/**
+ * Get the user's top artists.
+ * Returns array of artist name strings.
+ */
+export async function getTopArtists(accessToken, limit = 10) {
+  const data = await spotifyFetch(
+    `/me/top/artists?limit=${limit}&time_range=medium_term`,
+    accessToken
+  );
+  return data?.items?.map((a) => a.name) ?? [];
+}
+
+/**
+ * Get the user's top genres (derived from top artists).
+ * Returns array of unique genre strings.
+ */
+export async function getTopGenres(accessToken, limit = 10) {
+  const data = await spotifyFetch(
+    `/me/top/artists?limit=${limit}&time_range=medium_term`,
+    accessToken
+  );
+  const genres = data?.items?.flatMap((a) => a.genres) ?? [];
+  // Deduplicate and take top 10
+  return [...new Set(genres)].slice(0, 10);
+}
+
+// ─── Playback APIs ────────────────────────────────────────────────────────────
+
 export async function searchTracks(query, accessToken) {
-  const params = new URLSearchParams({ 
-    q: query, 
-    type: "track"
-  });
+  const params = new URLSearchParams({ q: query, type: "track" });
   return spotifyFetch(`/search?${params}`, accessToken);
 }
 

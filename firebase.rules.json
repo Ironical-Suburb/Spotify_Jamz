@@ -3,18 +3,26 @@
     "rooms": {
       "$roomCode": {
         ".read": "auth != null",
-
         ".write": "auth != null && (!data.exists() || data.child('hostId').val() === auth.uid)",
-
         "playback": {
           ".write": "auth != null && data.parent().child('hostId').val() === auth.uid"
         },
-
         "listeners": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid"
           }
         }
+      }
+    },
+
+    "users": {
+      "$uid": {
+        // Public profiles readable by all authenticated users
+        // Private profiles readable only by the owner
+        ".read": "auth != null && (data.child('isPublic').val() === true || auth.uid === $uid)",
+
+        // Only the owner can write their own profile
+        ".write": "auth != null && auth.uid === $uid"
       }
     }
   }

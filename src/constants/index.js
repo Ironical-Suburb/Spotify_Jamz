@@ -1,6 +1,6 @@
 export * from "./colors";
 
-// Spotify OAuth scopes needed for playback control
+// Spotify OAuth scopes — includes top artists/genres for profile
 export const SPOTIFY_SCOPES = [
   "user-read-playback-state",
   "user-modify-playback-state",
@@ -8,6 +8,9 @@ export const SPOTIFY_SCOPES = [
   "streaming",
   "playlist-read-private",
   "user-library-read",
+  "user-top-read",          // ← needed for top artists/genres
+  "user-read-private",      // ← needed for profile info
+  "user-read-email",        // ← needed for profile info
 ];
 
 // How often (ms) clients re-sync position with host to prevent drift
