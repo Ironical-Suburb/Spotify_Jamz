@@ -16,6 +16,7 @@ export function useRoom(roomCode, isHost) {
   const [error, setError] = useState(null);
   const currentTrackUriRef = useRef(null);
   const tickerRef = useRef(null);
+  const isLeavingRef = useRef(false);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -23,6 +24,8 @@ export function useRoom(roomCode, isHost) {
     // Subscribe to real-time room updates
     const unsubscribe = subscribeToRoom(roomCode, (data) => {
       if (!data) { setError("Room ended or not found."); return; }
+      if (data.ended && !isLeavingRef.current) { setError("The host ended the room."); return; }
+      if (data.ended) return;
       setRoom(data);
 
       // Listeners: sync to host playback on every update
@@ -53,7 +56,10 @@ export function useRoom(roomCode, isHost) {
     updatePlaybackState(roomCode, playbackState).catch(console.error);
   };
 
-  const leave = () => leaveRoom(roomCode, user?.uid, isHost);
+  const leave = () => {
+    isLeavingRef.current = true;
+    return leaveRoom(roomCode, user?.uid, isHost);
+  };
 
   return { room, error, broadcastPlayback, leave };
 }

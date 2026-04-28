@@ -1,31 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { auth } from "@services/firebase";
-import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import React, { createContext, useContext, useState } from "react";
+import uuid from "react-native-uuid";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user] = useState({ uid: uuid.v4() });
   const [spotifyToken, setSpotifyToken] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser({ uid: firebaseUser.uid });
-        setLoading(false);
-      } else {
-        signInAnonymously(auth).catch(console.error);
-      }
-    });
-    return unsub;
-  }, []);
 
   const logout = () => setSpotifyToken(null);
 
   return (
-    <AuthContext.Provider value={{ user, spotifyToken, setSpotifyToken, loading, logout }}>
-      {loading ? null : children}
+    <AuthContext.Provider value={{ user, spotifyToken, setSpotifyToken, loading: false, logout }}>
+      {children}
     </AuthContext.Provider>
   );
 }

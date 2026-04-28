@@ -28,7 +28,7 @@ export async function createProfile(uid, profileData) {
     spotifyDisplayName: clean(profileData.spotifyDisplayName),
     spotifyAvatar: clean(profileData.spotifyAvatar),
     followerCount: clean(profileData.followerCount),
-    createdAt: serverTimestamp(),
+    createdAt: Date.now(),
     currentRoom: null,
     currentTrack: null,
     online: true,

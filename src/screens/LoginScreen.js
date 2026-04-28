@@ -37,7 +37,7 @@ export default function LoginScreen() {
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: "spotifyjamsesh://callback",
+          redirect_uri: request.redirectUri,
           client_id: SPOTIFY_CLIENT_ID,
           code_verifier: codeVerifier,
         }).toString(),

@@ -13,7 +13,10 @@ export const discovery = {
 };
 
 export function useSpotifyAuth() {
-  const redirectUri = "spotifyjamsesh://callback";
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: "spotifyjamsesh",
+    path: "callback",
+  });
 
   console.log("REDIRECT URI BEING SENT:", redirectUri);
 
