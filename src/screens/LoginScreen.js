@@ -19,11 +19,12 @@ export default function LoginScreen() {
     console.log("SPOTIFY RESPONSE:", JSON.stringify(response));
 
     if (response.type === "success") {
+      setLoading(true);
       exchangeCodeForToken(response.params.code, request.codeVerifier);
     } else if (response.type === "error") {
       setError(response.error?.message || "Spotify login failed. Please try again.");
       setLoading(false);
-    } else if (response.type === "dismiss") {
+    } else if (response.type === "dismiss" || response.type === "cancel") {
       setError(null);
       setLoading(false);
     }
@@ -60,10 +61,12 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
-      await promptAsync();
+      const result = await promptAsync();
+      if (result?.type === "dismiss" || result?.type === "cancel") {
+        setLoading(false);
+      }
     } catch (e) {
       setError("Something went wrong. Please try again.");
       setLoading(false);

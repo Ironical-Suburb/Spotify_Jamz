@@ -12,25 +12,25 @@ export const discovery = {
   tokenEndpoint: "https://accounts.spotify.com/api/token",
 };
 
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: "spotifyjamsesh",
+  path: "callback",
+});
+
+const AUTH_CONFIG = {
+  clientId: SPOTIFY_CLIENT_ID,
+  scopes: SPOTIFY_SCOPES,
+  usePKCE: true,
+  redirectUri,
+  responseType: AuthSession.ResponseType.Code,
+  // Fixed state prevents "state mismatch" in Expo Go when the app remounts
+  // on redirect. PKCE (code_verifier) is the actual security mechanism here.
+  state: "jamz_auth_state",
+};
+
 export function useSpotifyAuth() {
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: "spotifyjamsesh",
-    path: "callback",
-  });
-
-  console.log("REDIRECT URI BEING SENT:", redirectUri);
-
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: SPOTIFY_CLIENT_ID,
-      scopes: SPOTIFY_SCOPES,
-      usePKCE: true,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      extraParams: {
-        show_dialog: "true",
-      },
-    },
+    AUTH_CONFIG,
     discovery
   );
 

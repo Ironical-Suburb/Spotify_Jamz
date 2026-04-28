@@ -1,74 +1,56 @@
 import { db } from "./firebase";
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { ref, set, get, remove } from "firebase/database";
 
-// ─── Search for users by exact nickname ───
+const FRIENDS = "friends";
+const USERS = "users";
+
 export const searchUsers = async (searchTerm, currentUserId) => {
+  const clean = searchTerm.replace("@", "").trim().toLowerCase();
+  if (!clean) return [];
   try {
-    // Strip the "@" if they typed it
-    const cleanTerm = searchTerm.replace("@", "").trim();
-    if (!cleanTerm) return [];
-
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("nickname", "==", cleanTerm));
-    const snapshot = await getDocs(q);
-
-    const results = [];
-    snapshot.forEach((doc) => {
-      // Don't show the current user in search results
-      if (doc.id !== currentUserId) {
-        results.push({ id: doc.id, ...doc.data() });
-      }
-    });
-    return results;
-  } catch (error) {
-    console.error("Search error:", error);
+    const snap = await get(ref(db, USERS));
+    if (!snap.exists()) return [];
+    return Object.entries(snap.val())
+      .filter(([uid, u]) => uid !== currentUserId && u.nickname && u.nickname.toLowerCase().includes(clean))
+      .map(([uid, u]) => ({ id: uid, ...u }));
+  } catch (e) {
+    console.error("Search error:", e);
     return [];
   }
 };
 
-// ─── Add a friend ───
+export const getFriends = async (currentUserId) => {
+  try {
+    const snap = await get(ref(db, `${FRIENDS}/${currentUserId}`));
+    if (!snap.exists()) return [];
+    return Object.values(snap.val());
+  } catch (e) {
+    console.error("Get friends error:", e);
+    return [];
+  }
+};
+
 export const addFriend = async (currentUserId, targetUser) => {
   try {
-    // Save the target user's basic info into a subcollection under the current user
-    const friendRef = doc(db, `users/${currentUserId}/friends`, targetUser.id);
-    await setDoc(friendRef, {
+    await set(ref(db, `${FRIENDS}/${currentUserId}/${targetUser.id}`), {
       id: targetUser.id,
       nickname: targetUser.nickname || "Unknown",
       emoji: targetUser.emoji || "👤",
-      addedAt: new Date().toISOString()
+      addedAt: Date.now(),
     });
     return true;
-  } catch (error) {
-    console.error("Add friend error:", error);
+  } catch (e) {
+    console.error("Add friend error:", e);
     return false;
   }
 };
 
-// ─── Remove a friend ───
 export const removeFriend = async (currentUserId, targetUserId) => {
   try {
-    const friendRef = doc(db, `users/${currentUserId}/friends`, targetUserId);
-    await deleteDoc(friendRef);
+    await remove(ref(db, `${FRIENDS}/${currentUserId}/${targetUserId}`));
     return true;
-  } catch (error) {
-    console.error("Remove friend error:", error);
+  } catch (e) {
+    console.error("Remove friend error:", e);
     return false;
-  }
-};
-
-// ─── Get current user's friends list ───
-export const getFriends = async (currentUserId) => {
-  try {
-    const friendsRef = collection(db, `users/${currentUserId}/friends`);
-    const snapshot = await getDocs(friendsRef);
-    
-    const friends = [];
-    snapshot.forEach((doc) => {
-      friends.push(doc.data());
-    });
-    return friends;
-  } catch (error) {
-    console.error("Get friends error:", error);
-    return [];
   }
 };

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert 
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@hooks/useAuth";
 import { searchUsers, addFriend, removeFriend, getFriends } from "@services/friendService";
 import { COLORS } from "@constants";

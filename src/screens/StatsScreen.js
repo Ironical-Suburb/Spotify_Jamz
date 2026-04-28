@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  ActivityIndicator, Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@hooks/useAuth";
 import { fetchUserStats } from "@services/spotify";
 import { COLORS } from "@constants";
@@ -14,7 +16,6 @@ export default function StatsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ artists: [], tracks: [] });
 
-  // ── Fetch Spotify Data whenever the tab changes ──
   useEffect(() => {
     const loadStats = async () => {
       if (!spotifyToken) return;
@@ -23,26 +24,17 @@ export default function StatsScreen({ navigation }) {
       setStats(data);
       setLoading(false);
     };
-
     loadStats();
   }, [activeTab, spotifyToken]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
-        {/* ── Top Bar ── */}
+
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-            <View style={styles.iconCircle}>
-              <Text style={styles.iconEmoji}>⬅️</Text>
-            </View>
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Your Stats</Text>
-          <View style={{ width: 44 }} />
         </View>
 
-        {/* ── Time Range Selector ── */}
         <View style={styles.tabContainer}>
           {TIME_RANGES.map((tab) => (
             <TouchableOpacity
@@ -57,70 +49,106 @@ export default function StatsScreen({ navigation }) {
           ))}
         </View>
 
-        {/* ── Main Content ── */}
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : (
             <>
-              {/* Top Artists Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🏆 Top 5 Artists</Text>
-                <View style={styles.card}>
-                  {stats.artists.length === 0 ? (
-                    <Text style={styles.emptyText}>Not enough data yet!</Text>
-                  ) : (
-                    stats.artists.map((artist, index) => (
-                      <View key={artist.id || index} style={styles.listItem}>
-                        <Text style={styles.rank}>#{index + 1}</Text>
-                        <Text style={styles.itemName} numberOfLines={1}>{artist.name}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
+                <Text style={styles.sectionTitle}>🏆 Top Artists</Text>
+                {stats.artists.length === 0 ? (
+                  <Text style={styles.emptyText}>Not enough data yet!</Text>
+                ) : (
+                  stats.artists.map((artist, index) => (
+                    <ArtistRow key={artist.id || index} artist={artist} rank={index + 1} />
+                  ))
+                )}
               </View>
 
-              {/* Top Tracks Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🎧 Top 5 Tracks</Text>
-                <View style={styles.card}>
-                  {stats.tracks.length === 0 ? (
-                    <Text style={styles.emptyText}>Not enough data yet!</Text>
-                  ) : (
-                    stats.tracks.map((track, index) => (
-                      <View key={track.id || index} style={styles.listItem}>
-                        <Text style={styles.rank}>#{index + 1}</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.itemName} numberOfLines={1}>{track.name}</Text>
-                          {/* Shows the artist name(s) under the track title */}
-                          <Text style={styles.itemSub} numberOfLines={1}>
-                            {track.artists.map(a => a.name).join(", ")}
-                          </Text>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </View>
+                <Text style={styles.sectionTitle}>🎧 Top Tracks</Text>
+                {stats.tracks.length === 0 ? (
+                  <Text style={styles.emptyText}>Not enough data yet!</Text>
+                ) : (
+                  stats.tracks.map((track, index) => (
+                    <TrackRow key={track.id || index} track={track} rank={index + 1} />
+                  ))
+                )}
               </View>
             </>
           )}
-
         </ScrollView>
       </View>
     </SafeAreaView>
   );
 }
 
+function ArtistRow({ artist, rank }) {
+  const imageUrl = artist.images?.[0]?.url;
+  const popularity = artist.popularity ?? 0;
+
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rank}>#{rank}</Text>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.artistImg} />
+      ) : (
+        <View style={[styles.artistImg, styles.imgPlaceholder]}>
+          <Text style={{ fontSize: 22 }}>🎤</Text>
+        </View>
+      )}
+      <View style={styles.rowInfo}>
+        <Text style={styles.rowName} numberOfLines={1}>{artist.name}</Text>
+        <View style={styles.popRow}>
+          <View style={styles.popBar}>
+            <View style={[styles.popFill, { width: `${popularity}%` }]} />
+          </View>
+          <Text style={styles.popLabel}>{popularity} popularity</Text>
+        </View>
+        {artist.genres?.length > 0 && (
+          <Text style={styles.genres} numberOfLines={1}>
+            {artist.genres.slice(0, 3).join(" · ")}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function TrackRow({ track, rank }) {
+  const imageUrl = track.album?.images?.[0]?.url;
+  const popularity = track.popularity ?? 0;
+  const artistNames = track.artists?.map(a => a.name).join(", ") ?? "";
+
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rank}>#{rank}</Text>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.trackImg} />
+      ) : (
+        <View style={[styles.trackImg, styles.imgPlaceholder]}>
+          <Text style={{ fontSize: 22 }}>🎵</Text>
+        </View>
+      )}
+      <View style={styles.rowInfo}>
+        <Text style={styles.rowName} numberOfLines={1}>{track.name}</Text>
+        <Text style={styles.rowSub} numberOfLines={1}>{artistNames}</Text>
+        <View style={styles.popRow}>
+          <View style={styles.popBar}>
+            <View style={[styles.popFill, { width: `${popularity}%` }]} />
+          </View>
+          <Text style={styles.popLabel}>{popularity} popularity</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
-  container: { flex: 1, paddingHorizontal: 24 },
-  
-  topBar: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24, marginTop: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary },
-  iconBtn: { padding: 2 },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center", borderWidth: 1.5, borderColor: COLORS.surfaceAlt },
-  iconEmoji: { fontSize: 20 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  topBar: { marginBottom: 20, marginTop: 8 },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: COLORS.textPrimary },
 
   tabContainer: { flexDirection: "row", backgroundColor: COLORS.surface, borderRadius: 12, padding: 4, marginBottom: 24 },
   tab: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
@@ -128,13 +156,23 @@ const styles = StyleSheet.create({
   tabText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600" },
   tabTextActive: { color: COLORS.textPrimary, fontWeight: "bold" },
 
-  scrollContent: { paddingBottom: 40, gap: 24 },
+  scrollContent: { paddingBottom: 40, gap: 32 },
   section: { gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary, marginLeft: 4 },
-  card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16 },
-  listItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceAlt },
-  rank: { color: COLORS.primary, fontWeight: "900", fontSize: 16, width: 32 },
-  itemName: { color: COLORS.textPrimary, fontSize: 16, fontWeight: "500", marginBottom: 2 },
-  itemSub: { color: COLORS.textMuted, fontSize: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary },
   emptyText: { color: COLORS.textMuted, fontStyle: "italic", textAlign: "center", paddingVertical: 10 },
+
+  row: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.surface, borderRadius: 16, padding: 12, gap: 12 },
+  rank: { color: COLORS.primary, fontWeight: "900", fontSize: 15, width: 28, textAlign: "center" },
+  artistImg: { width: 56, height: 56, borderRadius: 28 },
+  trackImg: { width: 56, height: 56, borderRadius: 10 },
+  imgPlaceholder: { backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center" },
+  rowInfo: { flex: 1, gap: 4 },
+  rowName: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "600" },
+  rowSub: { color: COLORS.textMuted, fontSize: 12 },
+  genres: { color: COLORS.textMuted, fontSize: 11 },
+
+  popRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  popBar: { flex: 1, height: 4, backgroundColor: COLORS.surfaceAlt, borderRadius: 2 },
+  popFill: { height: 4, backgroundColor: COLORS.primary, borderRadius: 2 },
+  popLabel: { color: COLORS.textMuted, fontSize: 10, width: 80 },
 });

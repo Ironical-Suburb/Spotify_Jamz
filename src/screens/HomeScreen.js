@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, StatusBar,
+  Alert, ActivityIndicator, StatusBar, ScrollView,
 } from "react-native";
 import { createRoom, joinRoom } from "@services/roomService";
 import { useAuth } from "@hooks/useAuth";
@@ -49,7 +49,11 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <StatusBar barStyle="light-content" />
 
       {/* Top bar */}
@@ -96,7 +100,6 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.joinTitle}>Join a Room</Text>
             <Text style={styles.joinSub}>Enter a code to vibe together</Text>
           </View>
-          
           <View style={styles.joinRow}>
             <TextInput
               style={styles.codeInput}
@@ -123,68 +126,54 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* ── Bottom Actions (Friends & Stats) ── */}
-      <View style={styles.bottomActions}>
-        
-        {/* Friends Button */}
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => navigation.navigate("Friends")}
+      {/* Quick-access tiles */}
+      <View style={styles.tiles}>
+        <TouchableOpacity
+          style={styles.tile}
+          onPress={() => navigation.navigate("Discover")}
           activeOpacity={0.8}
         >
-          <Text style={styles.actionBtnIcon}>👥</Text>
-          <View>
-            <Text style={styles.actionBtnTitle}>Friends</Text>
-            <Text style={styles.actionBtnSub}>Find users & manage your list</Text>
-          </View>
+          <Text style={styles.tileEmoji}>🔥</Text>
+          <Text style={styles.tileTitle}>Discover</Text>
+          <Text style={styles.tileSub}>Find your music match</Text>
         </TouchableOpacity>
-
-        {/* Stats Button */}
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => navigation.navigate("Stats")}
+        <TouchableOpacity
+          style={styles.tile}
+          onPress={() => navigation.navigate("Matches")}
           activeOpacity={0.8}
         >
-          <Text style={styles.actionBtnIcon}>📊</Text>
-          <View>
-            <Text style={styles.actionBtnTitle}>Your Listening Stats</Text>
-            <Text style={styles.actionBtnSub}>Top artists, tracks & genres</Text>
-          </View>
+          <Text style={styles.tileEmoji}>💜</Text>
+          <Text style={styles.tileTitle}>Matches</Text>
+          <Text style={styles.tileSub}>Chat & jam together</Text>
         </TouchableOpacity>
-
       </View>
-
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-  },
+  scroll: { flex: 1, backgroundColor: COLORS.background },
+  container: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 32 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 32 },
   appName: { fontSize: 20, fontWeight: "800", color: COLORS.textPrimary, letterSpacing: -0.5 },
   avatarBtn: { padding: 2 },
   avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.primary },
   avatarEmoji: { fontSize: 20 },
-  
+
   greetingRow: { marginBottom: 32 },
   greeting: { fontSize: 26, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 4 },
   greetingSub: { fontSize: 14, color: COLORS.textSecondary },
-  
-  card: { backgroundColor: COLORS.surface, borderRadius: 24, padding: 20, gap: 16 },
-  
+
+  card: { backgroundColor: COLORS.surface, borderRadius: 24, padding: 20, gap: 16, marginBottom: 24 },
+
   createBtn: { backgroundColor: COLORS.primary, borderRadius: 16, padding: 20 },
   createBtnTitle: { color: COLORS.background, fontSize: 17, fontWeight: "bold", marginBottom: 4 },
   createBtnSub: { color: COLORS.background + "BB", fontSize: 13 },
-  
+
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.surfaceAlt },
   dividerText: { color: COLORS.textMuted, fontSize: 12 },
-  
+
   joinContainer: { backgroundColor: COLORS.surfaceAlt, borderRadius: 16, padding: 20 },
   joinHeader: { marginBottom: 16 },
   joinTitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: "bold", marginBottom: 4 },
@@ -196,35 +185,9 @@ const styles = StyleSheet.create({
   joinBtnText: { color: COLORS.primary, fontWeight: "bold", fontSize: 15 },
   joinBtnTextDisabled: { color: COLORS.textMuted },
 
-  // ── Bottom Actions Styles ──
-  bottomActions: {
-    position: "absolute",
-    bottom: 32,
-    left: 24,
-    right: 24,
-    gap: 12,
-  },
-  actionBtn: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.surface,
-  },
-  actionBtnIcon: {
-    fontSize: 28,
-    marginRight: 16,
-  },
-  actionBtnTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: "bold",
-    marginBottom: 2,
-  },
-  actionBtnSub: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-  },
+  tiles: { flexDirection: "row", gap: 12 },
+  tile: { flex: 1, backgroundColor: COLORS.surface, borderRadius: 18, padding: 18, alignItems: "center" },
+  tileEmoji: { fontSize: 32, marginBottom: 8 },
+  tileTitle: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "bold", marginBottom: 4 },
+  tileSub: { color: COLORS.textSecondary, fontSize: 11, textAlign: "center" },
 });
