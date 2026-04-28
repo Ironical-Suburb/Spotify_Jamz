@@ -1,5 +1,5 @@
 import { db } from "./firebase";
-import { ref, set, get, push, onValue, off } from "firebase/database";
+import { ref, set, get, push, onValue, off, update } from "firebase/database";
 
 const LIKES = "likes";
 const PASSED = "passed";
@@ -70,6 +70,16 @@ export async function getMatchOtherProfile(matchData, currentUid) {
 export async function sendMatchMessage(mid, uid, displayName, text, extra = {}) {
   const msgRef = push(ref(db, `${MATCHES}/${mid}/chat`));
   await set(msgRef, { uid, displayName, text, sentAt: Date.now(), ...extra });
+}
+
+export async function revealProfile(mid, uid, avatarUrl) {
+  await set(ref(db, `${MATCHES}/${mid}/pfpShared/${uid}`), avatarUrl || "none");
+}
+
+export function subscribeToMatchPfp(mid, onUpdate) {
+  const pfpRef = ref(db, `${MATCHES}/${mid}/pfpShared`);
+  onValue(pfpRef, (snap) => onUpdate(snap.val() ?? {}));
+  return () => off(pfpRef);
 }
 
 export function subscribeToMatchChat(mid, onUpdate) {

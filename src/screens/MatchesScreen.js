@@ -90,6 +90,7 @@ export default function MatchesScreen({ navigation }) {
               matchId: item.id,
               otherNickname: item.other?.nickname,
               otherEmoji: item.other?.emoji,
+              otherUid: item.other?.uid,
             })}
           >
             <Text style={styles.chatBtnText}>💬</Text>

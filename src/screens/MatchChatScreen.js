@@ -1,31 +1,57 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
+  View, Text, FlatList, TextInput, TouchableOpacity, Image,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from "react-native";
 import { useAuth } from "@hooks/useAuth";
 import { useProfile } from "@hooks/useProfile";
-import { sendMatchMessage, subscribeToMatchChat } from "@services/matchService";
+import {
+  sendMatchMessage, subscribeToMatchChat,
+  revealProfile, subscribeToMatchPfp,
+} from "@services/matchService";
 import { createRoom } from "@services/roomService";
 import { COLORS } from "@constants";
 
 export default function MatchChatScreen({ route, navigation }) {
-  const { matchId, otherNickname, otherEmoji } = route.params;
+  const { matchId, otherNickname, otherEmoji, otherUid } = route.params;
   const { user } = useAuth();
   const { profile } = useProfile();
   const [messages, setMessages] = useState([]);
+  const [pfpShared, setPfpShared] = useState({});
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [jamming, setJamming] = useState(false);
-  const listRef = useRef(null);
-
-  useEffect(() => {
-    const unsub = subscribeToMatchChat(matchId, setMessages);
-    return unsub;
-  }, [matchId]);
+  const [revealing, setRevealing] = useState(false);
 
   const displayName = profile?.nickname ?? user?.uid?.slice(0, 8) ?? "You";
 
+  useEffect(() => {
+    const unsubChat = subscribeToMatchChat(matchId, setMessages);
+    const unsubPfp  = subscribeToMatchPfp(matchId, setPfpShared);
+    return () => { unsubChat(); unsubPfp(); };
+  }, [matchId]);
+
+  // ── Pfp reveal state ──────────────────────────────────────────────────────
+  const myAvatar    = pfpShared[user?.uid];
+  const theirAvatar = otherUid ? pfpShared[otherUid] : null;
+  const iRevealed   = !!myAvatar;
+  const theyRevealed = !!theirAvatar;
+  const bothRevealed = iRevealed && theyRevealed;
+
+  const handleReveal = async () => {
+    if (revealing || iRevealed) return;
+    setRevealing(true);
+    try {
+      const avatarUrl = profile?.spotifyAvatar || "none";
+      await revealProfile(matchId, user.uid, avatarUrl);
+    } catch (e) {
+      Alert.alert("Error", "Could not reveal profile.");
+    } finally {
+      setRevealing(false);
+    }
+  };
+
+  // ── Messaging ─────────────────────────────────────────────────────────────
   const send = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
@@ -43,7 +69,11 @@ export default function MatchChatScreen({ route, navigation }) {
     setJamming(true);
     try {
       const code = await createRoom(user.uid, displayName);
-      await sendMatchMessage(matchId, user.uid, displayName, `🎵 I started a Jam Sesh! Join with code: **${code}**`, { type: "jam_invite", roomCode: code });
+      await sendMatchMessage(
+        matchId, user.uid, displayName,
+        `🎵 Started a Jam Sesh! Code: ${code}`,
+        { type: "jam_invite", roomCode: code }
+      );
       navigation.navigate("Room", { roomCode: code, isHost: true, displayName });
     } catch (e) {
       Alert.alert("Error", e.message);
@@ -52,24 +82,20 @@ export default function MatchChatScreen({ route, navigation }) {
     }
   };
 
+  // ── Render helpers ────────────────────────────────────────────────────────
   const renderMessage = ({ item }) => {
     const isMe = item.uid === user.uid;
-    const isJamInvite = item.type === "jam_invite";
 
-    if (isJamInvite) {
+    if (item.type === "jam_invite") {
       return (
         <View style={styles.jamInviteRow}>
           <TouchableOpacity
             style={styles.jamInviteCard}
-            onPress={() => navigation.navigate("Room", {
-              roomCode: item.roomCode,
-              isHost: false,
-              displayName,
-            })}
+            onPress={() => navigation.navigate("Room", { roomCode: item.roomCode, isHost: false, displayName })}
           >
             <Text style={styles.jamInviteEmoji}>🎵</Text>
             <Text style={styles.jamInviteTitle}>{item.displayName} started a Jam Sesh!</Text>
-            <Text style={styles.jamInviteCode}>Code: {item.roomCode}</Text>
+            <Text style={styles.jamInviteCode}>{item.roomCode}</Text>
             <Text style={styles.jamInviteJoin}>Tap to join</Text>
           </TouchableOpacity>
         </View>
@@ -88,30 +114,64 @@ export default function MatchChatScreen({ route, navigation }) {
     );
   };
 
+  // ── Profile reveal banner ─────────────────────────────────────────────────
+  const renderRevealBanner = () => {
+    if (bothRevealed) {
+      const myUrl    = myAvatar    !== "none" ? myAvatar    : null;
+      const theirUrl = theirAvatar !== "none" ? theirAvatar : null;
+      return (
+        <View style={styles.revealBanner}>
+          <AvatarBubble url={myUrl}    emoji={profile?.emoji}   label="You" />
+          <Text style={styles.revealHeart}>❤️</Text>
+          <AvatarBubble url={theirUrl} emoji={otherEmoji}       label={otherNickname} />
+        </View>
+      );
+    }
+
+    if (iRevealed) {
+      return (
+        <View style={styles.revealBanner}>
+          <Text style={styles.revealWait}>
+            ✓ Photo shared — waiting for {otherNickname} to reveal...
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity style={styles.revealBanner} onPress={handleReveal} disabled={revealing} activeOpacity={0.85}>
+        {revealing
+          ? <ActivityIndicator color={COLORS.primary} size="small" />
+          : <>
+              <Text style={styles.revealLock}>🔒</Text>
+              <View>
+                <Text style={styles.revealTitle}>Profiles are anonymous</Text>
+                <Text style={styles.revealSub}>Tap to share your Spotify photo</Text>
+              </View>
+            </>
+        }
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={90}
     >
-      {/* Jam Together banner */}
-      <TouchableOpacity
-        style={styles.jamBanner}
-        onPress={handleJamTogether}
-        disabled={jamming}
-        activeOpacity={0.85}
-      >
+      {/* Jam Together */}
+      <TouchableOpacity style={styles.jamBanner} onPress={handleJamTogether} disabled={jamming} activeOpacity={0.85}>
         {jamming
           ? <ActivityIndicator color={COLORS.background} size="small" />
-          : <>
-              <Text style={styles.jamBannerIcon}>🎵</Text>
-              <Text style={styles.jamBannerText}>Jam Together</Text>
-            </>
+          : <><Text style={styles.jamBannerIcon}>🎵</Text><Text style={styles.jamBannerText}>Jam Together</Text></>
         }
       </TouchableOpacity>
 
+      {/* Profile reveal */}
+      {renderRevealBanner()}
+
       <FlatList
-        ref={listRef}
         data={[...messages].reverse()}
         keyExtractor={m => m.id}
         renderItem={renderMessage}
@@ -143,24 +203,46 @@ export default function MatchChatScreen({ route, navigation }) {
   );
 }
 
+function AvatarBubble({ url, emoji, label }) {
+  return (
+    <View style={styles.avatarWrap}>
+      {url
+        ? <Image source={{ uri: url }} style={styles.avatarImg} />
+        : <View style={styles.avatarFallback}><Text style={{ fontSize: 28 }}>{emoji ?? "🎵"}</Text></View>
+      }
+      <Text style={styles.avatarLabel} numberOfLines={1}>{label}</Text>
+    </View>
+  );
+}
+
 function formatTime(ms) {
   if (!ms) return "";
-  const d = new Date(ms);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  jamBanner: {
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
-  },
+
+  jamBanner: { backgroundColor: COLORS.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 8 },
   jamBannerIcon: { fontSize: 18 },
   jamBannerText: { color: COLORS.background, fontWeight: "bold", fontSize: 15 },
+
+  revealBanner: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: COLORS.surface, paddingVertical: 12, paddingHorizontal: 20,
+    gap: 12, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceAlt,
+  },
+  revealLock: { fontSize: 22 },
+  revealTitle: { color: COLORS.textPrimary, fontWeight: "bold", fontSize: 13 },
+  revealSub: { color: COLORS.textSecondary, fontSize: 11 },
+  revealWait: { color: COLORS.textSecondary, fontSize: 13, fontStyle: "italic" },
+  revealHeart: { fontSize: 24 },
+
+  avatarWrap: { alignItems: "center", gap: 4 },
+  avatarImg: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: COLORS.primary },
+  avatarFallback: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.primary },
+  avatarLabel: { color: COLORS.textMuted, fontSize: 11, maxWidth: 64 },
+
   msgList: { padding: 12, paddingBottom: 4 },
   msgRow: { flexDirection: "row", marginBottom: 10, alignItems: "flex-end", gap: 8 },
   msgRowMe: { justifyContent: "flex-end" },
@@ -172,38 +254,16 @@ const styles = StyleSheet.create({
   msgName: { color: COLORS.textMuted, fontSize: 11, marginBottom: 4 },
   msgText: { color: COLORS.textPrimary, fontSize: 14, lineHeight: 20 },
   msgTime: { color: COLORS.textMuted + "88", fontSize: 10, marginTop: 4, textAlign: "right" },
+
   jamInviteRow: { alignItems: "center", marginBottom: 12 },
-  jamInviteCard: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    width: "80%",
-  },
+  jamInviteCard: { backgroundColor: COLORS.surfaceAlt, borderRadius: 16, padding: 16, alignItems: "center", borderWidth: 1.5, borderColor: COLORS.primary, width: "80%" },
   jamInviteEmoji: { fontSize: 32, marginBottom: 8 },
   jamInviteTitle: { color: COLORS.textPrimary, fontWeight: "bold", fontSize: 14, textAlign: "center", marginBottom: 4 },
-  jamInviteCode: { color: COLORS.primary, fontWeight: "bold", fontSize: 18, letterSpacing: 4, marginBottom: 4 },
+  jamInviteCode: { color: COLORS.primary, fontWeight: "bold", fontSize: 22, letterSpacing: 6, marginBottom: 4 },
   jamInviteJoin: { color: COLORS.textSecondary, fontSize: 12 },
-  inputRow: {
-    flexDirection: "row",
-    padding: 12,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surface,
-    backgroundColor: COLORS.background,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    color: COLORS.textPrimary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    maxHeight: 100,
-  },
+
+  inputRow: { flexDirection: "row", padding: 12, gap: 10, borderTopWidth: 1, borderTopColor: COLORS.surface, backgroundColor: COLORS.background },
+  input: { flex: 1, backgroundColor: COLORS.surface, color: COLORS.textPrimary, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, maxHeight: 100 },
   sendBtn: { backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 18, justifyContent: "center" },
   sendBtnDisabled: { backgroundColor: COLORS.surfaceAlt },
   sendBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 14 },
