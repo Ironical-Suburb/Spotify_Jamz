@@ -4,57 +4,44 @@ import {
   set,
   get,
   update,
+  push,
   onValue,
   off,
   serverTimestamp,
 } from "firebase/database";
-import { DB_ROOMS } from "@constants";
-import uuid from "react-native-uuid";
+import { DB_ROOMS, DB_USERS } from "@constants";
 
-// ─── Room helpers ─────────────────────────────────────────────────────────────
-
-/** Generate a short human-friendly room code e.g. "X7K2" */
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
-/**
- * Create a new room. Returns the room code.
- * @param {string} hostId  Firebase UID of the host
- * @param {string} hostDisplayName
- */
 export async function createRoom(hostId, hostDisplayName) {
   const code = generateRoomCode();
-  const roomRef = ref(db, `${DB_ROOMS}/${code}`);
+  const now = Date.now();
 
-  await set(roomRef, {
+  await set(ref(db, `${DB_ROOMS}/${code}`), {
     code,
     hostId,
     hostDisplayName,
-    createdAt: serverTimestamp(),
-    // Playback state — updated by host in real time
+    createdAt: now,
+    ended: false,
     playback: {
-      trackUri: null,
-      trackName: null,
-      artistName: null,
-      albumArt: null,
+      trackUri: "",
+      trackName: "",
+      artistName: "",
+      albumArt: "",
       isPlaying: false,
       positionMs: 0,
-      updatedAt: null,
+      updatedAt: now,
     },
-    // Listeners keyed by uid
     listeners: {
-      [hostId]: { displayName: hostDisplayName, joinedAt: serverTimestamp() },
+      [hostId]: { displayName: hostDisplayName, joinedAt: now },
     },
   });
 
   return code;
 }
 
-/**
- * Join an existing room.
- * @returns {object} room snapshot or throws if room not found
- */
 export async function joinRoom(code, userId, displayName) {
   const roomRef = ref(db, `${DB_ROOMS}/${code}`);
   const snapshot = await get(roomRef);
@@ -63,43 +50,69 @@ export async function joinRoom(code, userId, displayName) {
     throw new Error("Room not found. Check the code and try again.");
   }
 
-  // Add this user to the listeners map
   await update(ref(db, `${DB_ROOMS}/${code}/listeners/${userId}`), {
     displayName,
-    joinedAt: serverTimestamp(),
+    joinedAt: Date.now(),
   });
 
   return snapshot.val();
 }
 
-/**
- * Subscribe to room changes. Returns unsubscribe function.
- * @param {string} code
- * @param {function} onUpdate  called with room data on every change
- */
 export function subscribeToRoom(code, onUpdate) {
   const roomRef = ref(db, `${DB_ROOMS}/${code}`);
   onValue(roomRef, (snapshot) => onUpdate(snapshot.val()));
   return () => off(roomRef);
 }
 
-/**
- * Push a new playback state from the host.
- */
 export async function updatePlaybackState(code, playback) {
   await update(ref(db, `${DB_ROOMS}/${code}/playback`), {
     ...playback,
-    updatedAt: Date.now(), // client timestamp for drift calculation
+    updatedAt: Date.now(),
   });
 }
 
-/**
- * Remove a user from the room. If they're the host, mark room as ended.
- */
 export async function leaveRoom(code, userId, isHost) {
   if (isHost) {
     await update(ref(db, `${DB_ROOMS}/${code}`), { ended: true });
   } else {
     await set(ref(db, `${DB_ROOMS}/${code}/listeners/${userId}`), null);
   }
+}
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+
+export async function sendChatMessage(code, userId, displayName, text) {
+  const msgRef = push(ref(db, `${DB_ROOMS}/${code}/chat`));
+  await set(msgRef, {
+    uid: userId,
+    displayName,
+    text: text.trim(),
+    sentAt: Date.now(),
+  });
+}
+
+export function subscribeToChat(code, onUpdate) {
+  const chatRef = ref(db, `${DB_ROOMS}/${code}/chat`);
+  onValue(chatRef, (snapshot) => {
+    const val = snapshot.val();
+    if (!val) { onUpdate([]); return; }
+    const messages = Object.entries(val)
+      .map(([id, msg]) => ({ id, ...msg }))
+      .sort((a, b) => a.sentAt - b.sentAt);
+    onUpdate(messages);
+  });
+  return () => off(chatRef);
+}
+
+// ─── Track ratings ────────────────────────────────────────────────────────────
+
+export async function rateTrack(userId, trackUri, trackName, artistName, rating) {
+  const trackId = trackUri.split(":").pop();
+  await set(ref(db, `${DB_USERS}/${userId}/ratings/${trackId}`), {
+    trackUri,
+    trackName,
+    artistName,
+    rating,
+    ratedAt: Date.now(),
+  });
 }

@@ -34,8 +34,7 @@
                      && newData.child('trackName').val().length <= 200
                      && newData.child('artistName').isString()
                      && newData.child('artistName').val().length <= 200
-                     && newData.child('albumArt').isString()
-                     && newData.child('albumArt').val().length <= 500
+                     && (!newData.hasChild('albumArt') || (newData.child('albumArt').isString() && newData.child('albumArt').val().length <= 500))
                      && newData.child('isPlaying').isBoolean()
                      && newData.child('positionMs').isNumber()
                      && newData.child('positionMs').val() >= 0
@@ -50,6 +49,21 @@
                        && newData.child('displayName').val().length >= 1
                        && newData.child('displayName').val().length <= 50
                        && newData.child('joinedAt').isNumber()"
+          }
+        },
+
+        "chat": {
+          "$messageId": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.hasChildren(['uid','displayName','text','sentAt'])
+                       && newData.child('uid').val() === auth.uid
+                       && newData.child('displayName').isString()
+                       && newData.child('displayName').val().length >= 1
+                       && newData.child('displayName').val().length <= 50
+                       && newData.child('text').isString()
+                       && newData.child('text').val().length >= 1
+                       && newData.child('text').val().length <= 500
+                       && newData.child('sentAt').isNumber()"
           }
         }
       }
@@ -66,7 +80,21 @@
                    && newData.child('spotifyId').isString()
                    && newData.child('spotifyId').val().length >= 1
                    && newData.child('createdAt').isNumber()
-                   && (!newData.hasChild('isPublic') || newData.child('isPublic').isBoolean())"
+                   && (!newData.hasChild('isPublic') || newData.child('isPublic').isBoolean())",
+
+        "ratings": {
+          "$trackId": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['trackUri','trackName','artistName','rating','ratedAt'])
+                       && newData.child('trackUri').isString()
+                       && newData.child('trackName').isString()
+                       && newData.child('artistName').isString()
+                       && newData.child('rating').isNumber()
+                       && newData.child('rating').val() >= 1
+                       && newData.child('rating').val() <= 10
+                       && newData.child('ratedAt').isNumber()"
+          }
+        }
       }
     }
   }
