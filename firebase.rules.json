@@ -1,15 +1,55 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+
     "rooms": {
+      ".indexOn": ["createdAt"],
+
       "$roomCode": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('hostId').val() === auth.uid)",
-        "playback": {
-          ".write": "auth != null && data.parent().child('hostId').val() === auth.uid"
+
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['code','hostId','hostDisplayName','createdAt','ended'])
+                   && newData.child('code').val() === $roomCode
+                   && newData.child('code').val().length === 4
+                   && newData.child('hostId').val() === auth.uid
+                   && newData.child('hostDisplayName').isString()
+                   && newData.child('hostDisplayName').val().length >= 1
+                   && newData.child('hostDisplayName').val().length <= 50
+                   && newData.child('createdAt').isNumber()
+                   && newData.child('ended').isBoolean()",
+
+        "ended": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
+          ".validate": "newData.isBoolean()"
         },
+
+        "playback": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['trackUri','trackName','artistName','isPlaying','positionMs','updatedAt'])
+                     && newData.child('trackUri').isString()
+                     && newData.child('trackUri').val().length <= 200
+                     && newData.child('trackName').isString()
+                     && newData.child('trackName').val().length <= 200
+                     && newData.child('artistName').isString()
+                     && newData.child('artistName').val().length <= 200
+                     && newData.child('albumArt').isString()
+                     && newData.child('albumArt').val().length <= 500
+                     && newData.child('isPlaying').isBoolean()
+                     && newData.child('positionMs').isNumber()
+                     && newData.child('positionMs').val() >= 0
+                     && newData.child('updatedAt').isNumber()"
+        },
+
         "listeners": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['displayName','joinedAt'])
+                       && newData.child('displayName').isString()
+                       && newData.child('displayName').val().length >= 1
+                       && newData.child('displayName').val().length <= 50
+                       && newData.child('joinedAt').isNumber()"
           }
         }
       }
@@ -17,12 +57,16 @@
 
     "users": {
       "$uid": {
-        // Public profiles readable by all authenticated users
-        // Private profiles readable only by the owner
         ".read": "auth != null && (data.child('isPublic').val() === true || auth.uid === $uid)",
-
-        // Only the owner can write their own profile
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['displayName','spotifyId','createdAt'])
+                   && newData.child('displayName').isString()
+                   && newData.child('displayName').val().length >= 1
+                   && newData.child('displayName').val().length <= 50
+                   && newData.child('spotifyId').isString()
+                   && newData.child('spotifyId').val().length >= 1
+                   && newData.child('createdAt').isNumber()
+                   && (!newData.hasChild('isPublic') || newData.child('isPublic').isBoolean())"
       }
     }
   }
