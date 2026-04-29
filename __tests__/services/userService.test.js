@@ -6,6 +6,10 @@ jest.mock('firebase/database', () => ({
   onValue: jest.fn(),
   off: jest.fn(),
   serverTimestamp: jest.fn().mockReturnValue('SERVER_TS'),
+  query: jest.fn().mockReturnValue('mock-query'),
+  orderByChild: jest.fn().mockReturnValue('mock-orderByChild'),
+  startAt: jest.fn().mockReturnValue('mock-startAt'),
+  endAt: jest.fn().mockReturnValue('mock-endAt'),
 }));
 
 jest.mock('../../src/services/firebase', () => ({ db: {} }));
@@ -19,6 +23,7 @@ const {
   subscribeToProfile,
   setOnlineStatus,
   setCurrentTrack,
+  searchPublicUsers,
 } = require('../../src/services/userService');
 
 function makeSnap(value) {
@@ -140,5 +145,33 @@ describe('setCurrentTrack', () => {
     const track = { name: 'Song', artist: 'Artist', uri: 'spotify:track:123' };
     await setCurrentTrack('uid-a', track);
     expect(update).toHaveBeenCalledWith('mock-ref', { currentTrack: track });
+  });
+});
+
+describe('searchPublicUsers', () => {
+  it('returns only public users from query results', async () => {
+    get.mockResolvedValue(makeSnap({
+      'uid-a': { nickname: 'alice', isPublic: true,  emoji: '🎵' },
+      'uid-b': { nickname: 'alice2', isPublic: false, emoji: '🎸' },
+    }));
+    const results = await searchPublicUsers('alice');
+    expect(results).toHaveLength(1);
+    expect(results[0].uid).toBe('uid-a');
+    expect(results[0].nickname).toBe('alice');
+  });
+
+  it('returns empty array when snapshot has no data', async () => {
+    get.mockResolvedValue(makeSnap(null));
+    const results = await searchPublicUsers('nobody');
+    expect(results).toEqual([]);
+  });
+
+  it('passes nickname to query bounds', async () => {
+    const { query, orderByChild, startAt, endAt } = require('firebase/database');
+    get.mockResolvedValue(makeSnap(null));
+    await searchPublicUsers('bob');
+    expect(orderByChild).toHaveBeenCalledWith('nickname');
+    expect(startAt).toHaveBeenCalledWith('bob');
+    expect(endAt).toHaveBeenCalledWith('bob');
   });
 });

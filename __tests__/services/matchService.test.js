@@ -12,13 +12,18 @@ jest.mock('firebase/database', () => ({
 
 jest.mock('../../src/services/firebase', () => ({ db: {} }));
 
-const { ref, set, get } = require('firebase/database');
+const { ref, set, get, push, onValue, off } = require('firebase/database');
 const {
   likeUser,
   passUser,
   getAlreadySeen,
   getPublicUsers,
   getMatches,
+  getMatchOtherProfile,
+  sendMatchMessage,
+  revealProfile,
+  subscribeToMatchPfp,
+  subscribeToMatchChat,
 } = require('../../src/services/matchService');
 
 function makeSnap(value) {
@@ -146,5 +151,111 @@ describe('getMatches', () => {
   it('returns empty array when no matches exist', async () => {
     get.mockResolvedValue(makeSnap(null));
     expect(await getMatches('uid-a')).toEqual([]);
+  });
+});
+
+describe('getMatchOtherProfile', () => {
+  it('returns the other user profile when user1 is current user', async () => {
+    get.mockResolvedValue(makeSnap({ nickname: 'Bob', emoji: '🎸' }));
+    const result = await getMatchOtherProfile({ user1: 'uid-me', user2: 'uid-bob' }, 'uid-me');
+    expect(result.uid).toBe('uid-bob');
+    expect(result.nickname).toBe('Bob');
+  });
+
+  it('returns the other user profile when user2 is current user', async () => {
+    get.mockResolvedValue(makeSnap({ nickname: 'Alice', emoji: '🎵' }));
+    const result = await getMatchOtherProfile({ user1: 'uid-alice', user2: 'uid-me' }, 'uid-me');
+    expect(result.uid).toBe('uid-alice');
+  });
+
+  it('returns null when other user profile does not exist', async () => {
+    get.mockResolvedValue(makeSnap(null));
+    const result = await getMatchOtherProfile({ user1: 'uid-me', user2: 'uid-gone' }, 'uid-me');
+    expect(result).toBeNull();
+  });
+});
+
+describe('sendMatchMessage', () => {
+  it('pushes message to match chat with correct fields', async () => {
+    await sendMatchMessage('match-123', 'uid-a', 'Alice', 'Hello!');
+    expect(push).toHaveBeenCalledWith('mock-ref');
+    expect(set).toHaveBeenCalledWith('mock-push-key', expect.objectContaining({
+      uid: 'uid-a',
+      displayName: 'Alice',
+      text: 'Hello!',
+    }));
+  });
+
+  it('merges extra fields into the message', async () => {
+    await sendMatchMessage('match-123', 'uid-a', 'Alice', 'Hi', { type: 'reveal' });
+    expect(set).toHaveBeenCalledWith('mock-push-key', expect.objectContaining({ type: 'reveal' }));
+  });
+});
+
+describe('revealProfile', () => {
+  it('writes avatarUrl to pfpShared', async () => {
+    await revealProfile('match-123', 'uid-a', 'https://example.com/avatar.jpg');
+    expect(ref).toHaveBeenCalledWith({}, 'matches/match-123/pfpShared/uid-a');
+    expect(set).toHaveBeenCalledWith('mock-ref', 'https://example.com/avatar.jpg');
+  });
+
+  it('writes "none" when avatarUrl is falsy', async () => {
+    await revealProfile('match-123', 'uid-a', null);
+    expect(set).toHaveBeenCalledWith('mock-ref', 'none');
+  });
+});
+
+describe('subscribeToMatchPfp', () => {
+  it('returns an unsubscribe function', () => {
+    const unsub = subscribeToMatchPfp('match-123', jest.fn());
+    expect(typeof unsub).toBe('function');
+    unsub();
+    expect(off).toHaveBeenCalledWith('mock-ref');
+  });
+
+  it('calls onUpdate with pfp data', () => {
+    const onUpdate = jest.fn();
+    subscribeToMatchPfp('match-123', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap({ 'uid-a': 'https://example.com/avatar.jpg' }));
+    expect(onUpdate).toHaveBeenCalledWith({ 'uid-a': 'https://example.com/avatar.jpg' });
+  });
+
+  it('calls onUpdate with empty object when no pfp data', () => {
+    const onUpdate = jest.fn();
+    subscribeToMatchPfp('match-123', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap(null));
+    expect(onUpdate).toHaveBeenCalledWith({});
+  });
+});
+
+describe('subscribeToMatchChat', () => {
+  it('returns an unsubscribe function', () => {
+    const unsub = subscribeToMatchChat('match-123', jest.fn());
+    expect(typeof unsub).toBe('function');
+    unsub();
+    expect(off).toHaveBeenCalledWith('mock-ref');
+  });
+
+  it('calls onUpdate with messages sorted ascending by sentAt', () => {
+    const onUpdate = jest.fn();
+    subscribeToMatchChat('match-123', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap({
+      'msg-b': { uid: 'uid-a', text: 'second', sentAt: 2000 },
+      'msg-a': { uid: 'uid-b', text: 'first',  sentAt: 1000 },
+    }));
+    const [msgs] = onUpdate.mock.calls[0];
+    expect(msgs[0].text).toBe('first');
+    expect(msgs[1].text).toBe('second');
+  });
+
+  it('calls onUpdate with empty array when no messages', () => {
+    const onUpdate = jest.fn();
+    subscribeToMatchChat('match-123', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap(null));
+    expect(onUpdate).toHaveBeenCalledWith([]);
   });
 });

@@ -10,7 +10,7 @@ jest.mock('firebase/database', () => ({
 
 jest.mock('../../src/services/firebase', () => ({ db: {} }));
 
-const { ref, set, get, remove } = require('firebase/database');
+const { ref, set, get, remove, onValue, off } = require('firebase/database');
 const {
   sendFriendRequest,
   cancelFriendRequest,
@@ -19,6 +19,7 @@ const {
   removeFriend,
   checkRelationship,
   getFriends,
+  subscribeToPendingRequests,
 } = require('../../src/services/friendRequestService');
 
 function makeSnap(value) {
@@ -131,5 +132,34 @@ describe('getFriends', () => {
   it('returns empty array when user has no friends', async () => {
     get.mockResolvedValue(makeSnap(null));
     expect(await getFriends('uid-a')).toEqual([]);
+  });
+});
+
+describe('subscribeToPendingRequests', () => {
+  it('returns an unsubscribe function', () => {
+    const unsub = subscribeToPendingRequests('uid-a', jest.fn());
+    expect(typeof unsub).toBe('function');
+    unsub();
+    expect(off).toHaveBeenCalledWith('mock-ref');
+  });
+
+  it('calls onUpdate with formatted pending requests', () => {
+    const onUpdate = jest.fn();
+    subscribeToPendingRequests('uid-a', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap({
+      'uid-x': { fromUid: 'uid-x', nickname: 'Xavier', emoji: '🎵', sentAt: 1000 },
+    }));
+    expect(onUpdate).toHaveBeenCalledWith([
+      expect.objectContaining({ fromUid: 'uid-x', nickname: 'Xavier' }),
+    ]);
+  });
+
+  it('calls onUpdate with empty array when no pending requests', () => {
+    const onUpdate = jest.fn();
+    subscribeToPendingRequests('uid-a', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap(null));
+    expect(onUpdate).toHaveBeenCalledWith([]);
   });
 });

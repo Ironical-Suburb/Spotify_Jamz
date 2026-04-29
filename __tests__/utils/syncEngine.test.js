@@ -92,6 +92,17 @@ describe('syncToHost', () => {
     // localPosition defaults to 0, target ~100ms, drift < 2000ms → no seek
     expect(seekTo).not.toHaveBeenCalled();
   });
+
+  it('catches errors silently without throwing', async () => {
+    getPlaybackState.mockRejectedValueOnce(new Error('Spotify API unavailable'));
+    await expect(
+      syncToHost(
+        { trackUri: 'spotify:track:same', isPlaying: true, positionMs: 1000, updatedAt: Date.now() },
+        TOKEN,
+        'spotify:track:same',
+      )
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe('startSyncTicker', () => {

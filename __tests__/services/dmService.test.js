@@ -107,6 +107,14 @@ describe('subscribeToDMMessages', () => {
 });
 
 describe('subscribeToDMList', () => {
+  it('calls onUpdate with empty array when no conversations', () => {
+    const onUpdate = jest.fn();
+    subscribeToDMList('uid-a', onUpdate);
+    const [[, callback]] = onValue.mock.calls;
+    callback(makeSnap(null));
+    expect(onUpdate).toHaveBeenCalledWith([]);
+  });
+
   it('calls onUpdate with conversations sorted newest first', () => {
     const onUpdate = jest.fn();
     subscribeToDMList('uid-a', onUpdate);
