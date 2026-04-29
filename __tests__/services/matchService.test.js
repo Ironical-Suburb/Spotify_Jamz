@@ -72,8 +72,8 @@ describe('likeUser', () => {
 
   it('produces a consistent matchId regardless of argument order', async () => {
     get
-      .mockResolvedValue(makeSnap(true))
-      .mockResolvedValue(makeSnap(null));
+      .mockResolvedValueOnce(makeSnap(true))  // mutual like exists
+      .mockResolvedValueOnce(makeSnap(null)); // match not yet created
 
     const id1 = await likeUser('user-b', 'user-a', 0.5);
     expect(id1).toBe('user-a_user-b'); // always sorted

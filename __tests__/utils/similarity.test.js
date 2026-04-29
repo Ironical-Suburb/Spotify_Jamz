@@ -50,8 +50,8 @@ describe('tasteSimilarity', () => {
   });
 
   it('handles Firebase object format for topGenres', () => {
-    const p1 = { topGenres: { 0: 'pop', 1: 'rock' }, topArtists: [] };
-    const p2 = { topGenres: ['pop', 'rock'], topArtists: [] };
+    const p1 = { topGenres: { 0: 'pop', 1: 'rock' }, topArtists: ['Artist A'] };
+    const p2 = { topGenres: ['pop', 'rock'], topArtists: ['Artist A'] };
     expect(tasteSimilarity(p1, p2)).toBeCloseTo(1.0);
   });
 
