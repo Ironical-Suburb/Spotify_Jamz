@@ -100,7 +100,43 @@
         ".read": true,
         "$friendId": {
           ".write": true,
-          ".validate": "newData.hasChildren(['id','nickname','addedAt']) && newData.child('id').isString() && newData.child('nickname').isString() && newData.child('addedAt').isNumber()"
+          ".validate": "newData.hasChildren(['uid','nickname','addedAt']) && newData.child('uid').isString() && newData.child('nickname').isString() && newData.child('addedAt').isNumber()"
+        }
+      }
+    },
+
+    "friendRequests": {
+      "$toUid": {
+        ".read": true,
+        "$fromUid": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.hasChildren(['fromUid','nickname','sentAt']) && newData.child('fromUid').isString() && newData.child('nickname').isString() && newData.child('sentAt').isNumber())"
+        }
+      }
+    },
+
+    "dms": {
+      "$dmId": {
+        ".read": true,
+        "info": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['participants','createdAt']) && newData.child('createdAt').isNumber()"
+        },
+        "messages": {
+          "$msgId": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['uid','displayName','text','sentAt']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 2000 && newData.child('sentAt').isNumber()"
+          }
+        }
+      }
+    },
+
+    "userDMs": {
+      "$uid": {
+        ".read": true,
+        "$dmId": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['dmId','otherUid','lastAt']) && newData.child('dmId').isString() && newData.child('otherUid').isString() && newData.child('lastAt').isNumber()"
         }
       }
     }

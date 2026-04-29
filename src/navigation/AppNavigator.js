@@ -19,6 +19,8 @@ import FriendsScreen from "@screens/FriendsScreen";
 import DiscoverScreen from "@screens/DiscoverScreen";
 import MatchesScreen from "@screens/MatchesScreen";
 import MatchChatScreen from "@screens/MatchChatScreen";
+import DMListScreen from "@screens/DMListScreen";
+import DMChatScreen from "@screens/DMChatScreen";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -193,6 +195,18 @@ export default function AppNavigator() {
               component={MatchChatScreen}
               options={({ route }) => ({
                 title: `${route.params?.otherEmoji ?? "🎵"} ${route.params?.otherNickname ?? "Match"}`,
+              })}
+            />
+            <Stack.Screen
+              name="DMList"
+              component={DMListScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="DMChat"
+              component={DMChatScreen}
+              options={({ route }) => ({
+                title: `${route.params?.otherEmoji ?? "🎵"} ${route.params?.otherNickname ?? "Chat"}`,
               })}
             />
           </>

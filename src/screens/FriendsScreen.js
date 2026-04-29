@@ -1,145 +1,165 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  TextInput, ActivityIndicator, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@hooks/useAuth";
-import { searchUsers, addFriend, removeFriend, getFriends } from "@services/friendService";
+import { useProfile } from "@hooks/useProfile";
+import {
+  sendFriendRequest, cancelFriendRequest, acceptFriendRequest,
+  declineFriendRequest, removeFriend, getFriends,
+  subscribeToPendingRequests, checkRelationship,
+} from "@services/friendRequestService";
+import { getOrCreateDM } from "@services/dmService";
 import { COLORS } from "@constants";
+
+const TABS = ["Find", "Requests", "Friends"];
 
 export default function FriendsScreen({ navigation }) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("My Friends");
-  
-  // States
+  const { profile } = useProfile();
+  const [activeTab, setActiveTab] = useState("Find");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [myFriends, setMyFriends] = useState([]);
+  const [relationMap, setRelationMap] = useState({});
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [acting, setActing] = useState(null);
 
-  // Load friends when "My Friends" tab is active
   useEffect(() => {
-    if (activeTab === "My Friends") {
-      loadFriends();
-    }
+    if (!user?.uid) return;
+    const unsub = subscribeToPendingRequests(user.uid, setPendingRequests);
+    return unsub;
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (activeTab === "Friends") loadFriends();
   }, [activeTab]);
 
   const loadFriends = async () => {
     setLoading(true);
-    const friendsData = await getFriends(user.uid);
-    setMyFriends(friendsData);
+    const list = await getFriends(user.uid);
+    setFriends(list);
     setLoading(false);
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    const clean = searchQuery.replace("@", "").trim().toLowerCase();
+    if (!clean) return;
     setLoading(true);
-    const results = await searchUsers(searchQuery, user.uid);
-    setSearchResults(results);
-    setLoading(false);
-  };
+    try {
+      const { get, ref } = await import("firebase/database");
+      const { db } = await import("@services/firebase");
+      const snap = await get(ref(db, "users"));
+      if (!snap.exists()) { setSearchResults([]); return; }
+      const results = Object.entries(snap.val())
+        .filter(([uid, u]) => uid !== user.uid && u.nickname?.toLowerCase().includes(clean))
+        .map(([uid, u]) => ({ uid, ...u }));
+      setSearchResults(results);
 
-  const handleAddFriend = async (targetUser) => {
-    const success = await addFriend(user.uid, targetUser);
-    if (success) {
-      Alert.alert("Added!", `${targetUser.nickname} has been added to your crew.`);
-      // Optional: switch back to My Friends tab to see them
-      setActiveTab("My Friends");
-      setSearchQuery("");
-      setSearchResults([]);
-    } else {
-      Alert.alert("Error", "Could not add friend. Try again.");
+      const rels = {};
+      await Promise.all(results.map(async (u) => {
+        rels[u.uid] = await checkRelationship(user.uid, u.uid);
+      }));
+      setRelationMap(rels);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveFriend = async (targetUserId) => {
-    const success = await removeFriend(user.uid, targetUserId);
-    if (success) {
-      // Remove them from local state instantly so the UI updates without a reload
-      setMyFriends((prev) => prev.filter((f) => f.id !== targetUserId));
-    } else {
-      Alert.alert("Error", "Could not remove friend.");
-    }
+  const handleSendRequest = async (target) => {
+    setActing(target.uid);
+    try {
+      await sendFriendRequest(user.uid, profile, target.uid);
+      setRelationMap(r => ({ ...r, [target.uid]: "pending_sent" }));
+    } catch { Alert.alert("Error", "Could not send request."); }
+    finally { setActing(null); }
+  };
+
+  const handleCancelRequest = async (target) => {
+    setActing(target.uid);
+    try {
+      await cancelFriendRequest(user.uid, target.uid);
+      setRelationMap(r => ({ ...r, [target.uid]: "none" }));
+    } catch { Alert.alert("Error", "Could not cancel."); }
+    finally { setActing(null); }
+  };
+
+  const handleAccept = async (req) => {
+    setActing(req.fromUid);
+    try {
+      await acceptFriendRequest(user.uid, profile, req.fromUid);
+    } catch { Alert.alert("Error", "Could not accept."); }
+    finally { setActing(null); }
+  };
+
+  const handleDecline = async (req) => {
+    setActing(req.fromUid);
+    try {
+      await declineFriendRequest(user.uid, req.fromUid);
+    } catch { Alert.alert("Error", "Could not decline."); }
+    finally { setActing(null); }
+  };
+
+  const handleRemoveFriend = (friendUid) => {
+    Alert.alert("Remove Friend", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove", style: "destructive",
+        onPress: async () => {
+          await removeFriend(user.uid, friendUid);
+          setFriends(f => f.filter(x => x.uid !== friendUid));
+        },
+      },
+    ]);
+  };
+
+  const handleMessage = async (friend) => {
+    const dmId = await getOrCreateDM(user.uid, friend.uid);
+    navigation.navigate("DMChat", {
+      dmId,
+      otherUid: friend.uid,
+      otherNickname: friend.nickname,
+      otherEmoji: friend.emoji,
+    });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
-        {/* ── Top Bar ── */}
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-            <View style={styles.iconCircle}>
-              <Text style={styles.iconEmoji}>⬅️</Text>
-            </View>
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Friends</Text>
-          <View style={{ width: 44 }} />
-        </View>
-
-        {/* ── Tab Selector ── */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "My Friends" && styles.tabActive]}
-            onPress={() => setActiveTab("My Friends")}
-          >
-            <Text style={[styles.tabText, activeTab === "My Friends" && styles.tabTextActive]}>
-              My Friends
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "Add Friends" && styles.tabActive]}
-            onPress={() => setActiveTab("Add Friends")}
-          >
-            <Text style={[styles.tabText, activeTab === "Add Friends" && styles.tabTextActive]}>
-              Add Friends
-            </Text>
+          <TouchableOpacity style={styles.messagesBtn} onPress={() => navigation.navigate("DMList")}>
+            <Text style={styles.messagesBtnText}>💬 Messages</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Content Area ── */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
-          {loading && <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />}
+        {/* Tab selector */}
+        <View style={styles.tabRow}>
+          {TABS.map(t => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.tab, activeTab === t && styles.tabActive]}
+              onPress={() => setActiveTab(t)}
+            >
+              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
+                {t}{t === "Requests" && pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ""}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          {/* MY FRIENDS TAB */}
-          {!loading && activeTab === "My Friends" && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Your Crew ({myFriends.length})</Text>
-              <View style={styles.card}>
-                {myFriends.length === 0 ? (
-                  <Text style={styles.emptyText}>You haven't added anyone yet.</Text>
-                ) : (
-                  myFriends.map((friend) => (
-                    <View key={friend.id} style={styles.friendRow}>
-                      <View style={styles.friendAvatar}>
-                        <Text style={styles.friendEmoji}>{friend.emoji || "👤"}</Text>
-                      </View>
-                      <View style={styles.friendInfo}>
-                        <Text style={styles.friendName}>{friend.nickname}</Text>
-                      </View>
-                      <TouchableOpacity 
-                        style={styles.removeBtn}
-                        onPress={() => handleRemoveFriend(friend.id)}
-                      >
-                        <Text style={styles.removeBtnText}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))
-                )}
-              </View>
-            </View>
-          )}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-          {/* ADD FRIENDS TAB */}
-          {!loading && activeTab === "Add Friends" && (
+          {/* ── FIND TAB ── */}
+          {activeTab === "Find" && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Find by Username</Text>
-              
               <View style={styles.searchRow}>
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="@username"
+                  placeholder="Search by nickname..."
                   placeholderTextColor={COLORS.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -147,44 +167,96 @@ export default function FriendsScreen({ navigation }) {
                   returnKeyType="search"
                   onSubmitEditing={handleSearch}
                 />
-                <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
                   <Text style={styles.searchBtnText}>Search</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.card}>
-                {searchResults.length === 0 && searchQuery.length > 0 ? (
-                  <Text style={styles.emptyText}>No users found. Hit search!</Text>
-                ) : searchResults.length === 0 ? (
-                  <Text style={styles.emptyText}>Search results will appear here...</Text>
-                ) : (
-                  searchResults.map((userResult) => {
-                    // Check if they are already our friend to prevent duplicates
-                    const isAlreadyFriend = myFriends.some(f => f.id === userResult.id);
+              {loading && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />}
 
-                    return (
-                      <View key={userResult.id} style={styles.friendRow}>
-                        <View style={styles.friendAvatar}>
-                          <Text style={styles.friendEmoji}>{userResult.emoji || "👤"}</Text>
-                        </View>
-                        <View style={styles.friendInfo}>
-                          <Text style={styles.friendName}>{userResult.nickname}</Text>
-                        </View>
-                        {isAlreadyFriend ? (
-                          <Text style={styles.textMuted}>Added</Text>
-                        ) : (
-                          <TouchableOpacity 
-                            style={styles.addBtn}
-                            onPress={() => handleAddFriend(userResult)}
-                          >
-                            <Text style={styles.addBtnText}>Add</Text>
-                          </TouchableOpacity>
-                        )}
+              {!loading && searchResults.map(u => {
+                const rel = relationMap[u.uid] ?? "none";
+                const isActing = acting === u.uid;
+                return (
+                  <View key={u.uid} style={styles.userRow}>
+                    <Text style={styles.userEmoji}>{u.emoji ?? "🎵"}</Text>
+                    <View style={styles.userInfo}>
+                      <Text style={styles.userNickname}>{u.nickname}</Text>
+                    </View>
+                    {isActing
+                      ? <ActivityIndicator color={COLORS.primary} size="small" />
+                      : rel === "friends"
+                        ? <Text style={styles.tagFriends}>Friends ✓</Text>
+                        : rel === "pending_sent"
+                          ? <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancelRequest(u)}>
+                              <Text style={styles.cancelBtnText}>Requested</Text>
+                            </TouchableOpacity>
+                          : rel === "pending_received"
+                            ? <Text style={styles.tagPending}>Wants to add you</Text>
+                            : <TouchableOpacity style={styles.addBtn} onPress={() => handleSendRequest(u)}>
+                                <Text style={styles.addBtnText}>Add</Text>
+                              </TouchableOpacity>
+                    }
+                  </View>
+                );
+              })}
+
+              {!loading && searchResults.length === 0 && searchQuery.length > 0 && (
+                <Text style={styles.emptyText}>No users found.</Text>
+              )}
+            </View>
+          )}
+
+          {/* ── REQUESTS TAB ── */}
+          {activeTab === "Requests" && (
+            <View style={styles.section}>
+              {pendingRequests.length === 0
+                ? <Text style={styles.emptyText}>No pending friend requests.</Text>
+                : pendingRequests.map(req => (
+                    <View key={req.fromUid} style={styles.userRow}>
+                      <Text style={styles.userEmoji}>{req.emoji ?? "🎵"}</Text>
+                      <View style={styles.userInfo}>
+                        <Text style={styles.userNickname}>{req.nickname}</Text>
+                        <Text style={styles.userSub}>Wants to be your friend</Text>
                       </View>
-                    );
-                  })
-                )}
-              </View>
+                      {acting === req.fromUid
+                        ? <ActivityIndicator color={COLORS.primary} size="small" />
+                        : <View style={styles.requestBtns}>
+                            <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(req)}>
+                              <Text style={styles.acceptBtnText}>✓</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(req)}>
+                              <Text style={styles.declineBtnText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                      }
+                    </View>
+                  ))
+              }
+            </View>
+          )}
+
+          {/* ── FRIENDS TAB ── */}
+          {activeTab === "Friends" && (
+            <View style={styles.section}>
+              {loading && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />}
+              {!loading && friends.length === 0 && (
+                <Text style={styles.emptyText}>No friends yet — find people in the Find tab.</Text>
+              )}
+              {!loading && friends.map(f => (
+                <View key={f.uid} style={styles.userRow}>
+                  <Text style={styles.userEmoji}>{f.emoji ?? "🎵"}</Text>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userNickname}>{f.nickname}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.msgBtn} onPress={() => handleMessage(f)}>
+                    <Text style={styles.msgBtnText}>💬</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveFriend(f.uid)}>
+                    <Text style={styles.removeBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           )}
 
@@ -196,42 +268,49 @@ export default function FriendsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
-  container: { flex: 1, paddingHorizontal: 24 },
-  
-  topBar: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24, marginTop: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary },
-  iconBtn: { padding: 2 },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center", borderWidth: 1.5, borderColor: COLORS.surfaceAlt },
-  iconEmoji: { fontSize: 20 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, marginTop: 8 },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: COLORS.textPrimary },
+  messagesBtn: { backgroundColor: COLORS.surface, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  messagesBtnText: { color: COLORS.textPrimary, fontWeight: "600", fontSize: 13 },
 
-  tabContainer: { flexDirection: "row", backgroundColor: COLORS.surface, borderRadius: 12, padding: 4, marginBottom: 24 },
+  tabRow: { flexDirection: "row", backgroundColor: COLORS.surface, borderRadius: 12, padding: 4, marginBottom: 20 },
   tab: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
   tabActive: { backgroundColor: COLORS.surfaceAlt },
   tabText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600" },
   tabTextActive: { color: COLORS.textPrimary, fontWeight: "bold" },
 
-  scrollContent: { paddingBottom: 40 },
+  scroll: { paddingBottom: 40 },
   section: { gap: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: "bold", color: COLORS.textSecondary, marginLeft: 4, marginBottom: 4 },
-  card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, gap: 16 },
-  
-  friendRow: { flexDirection: "row", alignItems: "center" },
-  friendAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  friendEmoji: { fontSize: 20 },
-  friendInfo: { flex: 1 },
-  friendName: { color: COLORS.textPrimary, fontSize: 16, fontWeight: "bold", marginBottom: 2 },
-  
-  removeBtn: { backgroundColor: COLORS.surfaceAlt, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  removeBtnText: { color: "#FF5252", fontSize: 13, fontWeight: "bold" },
-  
-  addBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  addBtnText: { color: COLORS.background, fontSize: 13, fontWeight: "bold" },
 
-  searchRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  searchInput: { flex: 1, backgroundColor: COLORS.surface, color: COLORS.textPrimary, borderRadius: 12, padding: 16, fontSize: 15 },
-  searchBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 20, justifyContent: "center", alignItems: "center" },
-  searchBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 15 },
-  
-  emptyText: { color: COLORS.textMuted, fontStyle: "italic", textAlign: "center", paddingVertical: 20 },
-  textMuted: { color: COLORS.textMuted, fontStyle: "italic", paddingRight: 8 },
+  searchRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
+  searchInput: { flex: 1, backgroundColor: COLORS.surface, color: COLORS.textPrimary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14 },
+  searchBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 18, justifyContent: "center" },
+  searchBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 14 },
+
+  userRow: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, gap: 12 },
+  userEmoji: { fontSize: 32 },
+  userInfo: { flex: 1 },
+  userNickname: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "bold" },
+  userSub: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+
+  addBtn: { backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  addBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 13 },
+  cancelBtn: { backgroundColor: COLORS.surfaceAlt, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  cancelBtnText: { color: COLORS.textMuted, fontWeight: "bold", fontSize: 13 },
+  tagFriends: { color: COLORS.primary, fontWeight: "bold", fontSize: 12 },
+  tagPending: { color: COLORS.textMuted, fontSize: 12, fontStyle: "italic" },
+
+  requestBtns: { flexDirection: "row", gap: 8 },
+  acceptBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary, justifyContent: "center", alignItems: "center" },
+  acceptBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 16 },
+  declineBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center" },
+  declineBtnText: { color: COLORS.textSecondary, fontWeight: "bold", fontSize: 16 },
+
+  msgBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center" },
+  msgBtnText: { fontSize: 16 },
+  removeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center" },
+  removeBtnText: { color: "#FF5252", fontWeight: "bold", fontSize: 14 },
+
+  emptyText: { color: COLORS.textMuted, textAlign: "center", paddingVertical: 32, fontStyle: "italic" },
 });

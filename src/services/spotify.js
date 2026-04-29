@@ -12,7 +12,7 @@ export const discovery = {
   tokenEndpoint: "https://accounts.spotify.com/api/token",
 };
 
-const redirectUri = AuthSession.makeRedirectUri({
+export const redirectUri = AuthSession.makeRedirectUri({
   scheme: "spotifyjamsesh",
   path: "callback",
 });
