@@ -7,31 +7,31 @@
       ".indexOn": ["createdAt"],
 
       "$roomCode": {
-        ".read": true,
+        ".read": "auth != null",
 
-        ".write": "!data.exists()",
+        ".write": "auth != null && !data.exists() && newData.child('hostId').val() === auth.uid",
         ".validate": "newData.hasChildren(['code','hostId','hostDisplayName','createdAt','ended']) && newData.child('code').val() === $roomCode && newData.child('code').val().length === 4 && newData.child('hostDisplayName').isString() && newData.child('hostDisplayName').val().length >= 1 && newData.child('hostDisplayName').val().length <= 50 && newData.child('createdAt').isNumber() && newData.child('ended').isBoolean()",
 
         "ended": {
-          ".write": "root.child('rooms').child($roomCode).child('hostId').val() === data.parent().child('hostId').val()",
+          ".write": "auth != null && auth.uid === root.child('rooms').child($roomCode).child('hostId').val()",
           ".validate": "newData.isBoolean()"
         },
 
         "playback": {
-          ".write": true,
+          ".write": "auth != null && auth.uid === root.child('rooms').child($roomCode).child('hostId').val()",
           ".validate": "newData.hasChildren(['trackUri','trackName','artistName','isPlaying','positionMs','updatedAt']) && newData.child('trackUri').isString() && newData.child('trackUri').val().length <= 200 && newData.child('trackName').isString() && newData.child('trackName').val().length <= 200 && newData.child('artistName').isString() && newData.child('artistName').val().length <= 200 && (!newData.hasChild('albumArt') || (newData.child('albumArt').isString() && newData.child('albumArt').val().length <= 500)) && newData.child('isPlaying').isBoolean() && newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0 && newData.child('updatedAt').isNumber()"
         },
 
         "listeners": {
           "$uid": {
-            ".write": true,
+            ".write": "auth != null && auth.uid === $uid",
             ".validate": "newData.hasChildren(['displayName','joinedAt']) && newData.child('displayName').isString() && newData.child('displayName').val().length >= 1 && newData.child('displayName').val().length <= 50 && newData.child('joinedAt').isNumber()"
           }
         },
 
         "chat": {
           "$messageId": {
-            ".write": "!data.exists()",
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid",
             ".validate": "newData.hasChildren(['uid','displayName','text','sentAt']) && newData.child('displayName').isString() && newData.child('displayName').val().length >= 1 && newData.child('displayName').val().length <= 50 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 500 && newData.child('sentAt').isNumber()"
           }
         }
@@ -39,10 +39,11 @@
     },
 
     "likes": {
-      ".read": true,
       "$fromUid": {
+        ".read": "auth != null && auth.uid === $fromUid",
         "$toUid": {
-          ".write": true,
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $fromUid",
           ".validate": "newData.isBoolean()"
         }
       }
@@ -50,30 +51,31 @@
 
     "passed": {
       "$fromUid": {
-        ".read": true,
+        ".read": "auth != null && auth.uid === $fromUid",
         "$toUid": {
-          ".write": true,
+          ".write": "auth != null && auth.uid === $fromUid",
           ".validate": "newData.isBoolean()"
         }
       }
     },
 
     "matches": {
-      ".read": true,
+      ".read": "auth != null",
+
       "$matchId": {
-        ".write": "!data.exists()",
+        ".write": "auth != null && !data.exists() && (newData.child('user1').val() === auth.uid || newData.child('user2').val() === auth.uid)",
         ".validate": "newData.hasChildren(['user1','user2','score','createdAt']) && newData.child('user1').isString() && newData.child('user2').isString() && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 100 && newData.child('createdAt').isNumber()",
 
         "pfpShared": {
           "$uid": {
-            ".write": true,
+            ".write": "auth != null && auth.uid === $uid",
             ".validate": "newData.isString() && newData.val().length <= 500"
           }
         },
 
         "chat": {
           "$messageId": {
-            ".write": "!data.exists()",
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid",
             ".validate": "newData.hasChildren(['uid','displayName','text','sentAt']) && newData.child('displayName').isString() && newData.child('displayName').val().length >= 1 && newData.child('displayName').val().length <= 50 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 1000 && newData.child('sentAt').isNumber()"
           }
         }
@@ -81,14 +83,15 @@
     },
 
     "users": {
-      ".read": true,
+      ".read": "auth != null",
+
       "$uid": {
-        ".write": true,
+        ".write": "auth != null && auth.uid === $uid",
         ".validate": "newData.hasChildren(['nickname','createdAt']) && newData.child('nickname').isString() && newData.child('nickname').val().length >= 1 && newData.child('nickname').val().length <= 50 && newData.child('createdAt').isNumber() && (!newData.hasChild('isPublic') || newData.child('isPublic').isBoolean())",
 
         "ratings": {
           "$trackId": {
-            ".write": true,
+            ".write": "auth != null && auth.uid === $uid",
             ".validate": "newData.hasChildren(['trackUri','trackName','artistName','rating','ratedAt']) && newData.child('trackUri').isString() && newData.child('trackName').isString() && newData.child('artistName').isString() && newData.child('rating').isNumber() && newData.child('rating').val() >= 1 && newData.child('rating').val() <= 10 && newData.child('ratedAt').isNumber()"
           }
         }
@@ -97,9 +100,9 @@
 
     "friends": {
       "$uid": {
-        ".read": true,
+        ".read": "auth != null && auth.uid === $uid",
         "$friendId": {
-          ".write": true,
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendId)",
           ".validate": "newData.hasChildren(['uid','nickname','addedAt']) && newData.child('uid').isString() && newData.child('nickname').isString() && newData.child('addedAt').isNumber()"
         }
       }
@@ -107,9 +110,9 @@
 
     "friendRequests": {
       "$toUid": {
-        ".read": true,
+        ".read": "auth != null && auth.uid === $toUid",
         "$fromUid": {
-          ".write": true,
+          ".write": "auth != null && (auth.uid === $fromUid || auth.uid === $toUid)",
           ".validate": "!newData.exists() || (newData.hasChildren(['fromUid','nickname','sentAt']) && newData.child('fromUid').isString() && newData.child('nickname').isString() && newData.child('sentAt').isNumber())"
         }
       }
@@ -117,14 +120,16 @@
 
     "dms": {
       "$dmId": {
-        ".read": true,
+        ".read": "auth != null && data.child('info/participants').hasChild(auth.uid)",
+
         "info": {
-          ".write": true,
+          ".write": "auth != null && newData.child('participants').hasChild(auth.uid)",
           ".validate": "newData.hasChildren(['participants','createdAt']) && newData.child('createdAt').isNumber()"
         },
+
         "messages": {
           "$msgId": {
-            ".write": "!data.exists()",
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && root.child('dms').child($dmId).child('info/participants').hasChild(auth.uid)",
             ".validate": "newData.hasChildren(['uid','displayName','text','sentAt']) && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 2000 && newData.child('sentAt').isNumber()"
           }
         }
@@ -133,9 +138,9 @@
 
     "userDMs": {
       "$uid": {
-        ".read": true,
+        ".read": "auth != null && auth.uid === $uid",
         "$dmId": {
-          ".write": true,
+          ".write": "auth != null && (auth.uid === $uid || newData.child('otherUid').val() === auth.uid)",
           ".validate": "newData.hasChildren(['dmId','otherUid','lastAt']) && newData.child('dmId').isString() && newData.child('otherUid').isString() && newData.child('lastAt').isNumber()"
         }
       }
