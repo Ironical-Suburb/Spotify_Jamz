@@ -1,6 +1,6 @@
 # Spotify Jam Sesh
 
-A React Native social music app built on Expo. Users connect their Spotify account, listen to music together in real-time rooms, discover others based on music taste similarity, match with people they like, and chat directly.
+Spotify-powered social app to discover music-compatible friends, jam in shared listening rooms, and chat with your matches.
 
 ---
 
@@ -12,23 +12,23 @@ A React Native social music app built on Expo. Users connect their Spotify accou
 - The host picks tracks via Spotify search; Firebase broadcasts the track and position to every listener
 - Each listener's Spotify app syncs automatically with drift correction every 30 seconds
 - In-room live chat and a listener list with host badge
-- Track rating modal (1-10 scale) saved per user
+- Track rating modal (1–10 scale) saved per user
 
 ### Music Taste Matching
 - Discover screen shows public profiles ranked by taste similarity
 - Swipe right to like, swipe left to pass (full gesture with rotation and LIKE/PASS stamp overlay)
-- Similarity score is calculated using cosine similarity on genre vectors (70%) and Jaccard similarity on artist sets (30%)
-- Mutual likes create a match and open a chat
+- Similarity score uses cosine similarity on genre vectors (70%) and Jaccard similarity on artist sets (30%)
+- Mutual likes create a match and open a dedicated chat
 - Match chat supports real-time messaging and a Jam Together button that creates a room and sends a tappable invite card into the conversation
 - Profiles are anonymous until both matched users opt in to share their Spotify photo
 
 ### Friends
 - Instagram-style friend request system: send, cancel, accept, or decline requests
+- Contextual state per search result: Add / Requested / Friends / Wants to add you
 - Only mutual friends appear in the Friends list
-- Friend requests show contextual state per search result: Add / Requested / Friends / Wants to add you
 
 ### Direct Messages
-- Persistent 1-to-1 chat between friends stored in Firebase forever
+- Persistent 1-to-1 chat between friends stored in Firebase
 - DM list screen sorted by latest message with unread indicators
 - Accessible from the Friends tab via the message button next to each friend
 
@@ -38,9 +38,34 @@ A React Native social music app built on Expo. Users connect their Spotify accou
 
 ### Authentication
 - Spotify OAuth 2.0 with PKCE — no client secret required
-- Token and refresh token persisted to AsyncStorage; app restores the session silently on every launch
+- Token and refresh token persisted to AsyncStorage; app restores session silently on every launch
 - If the token is expired, a silent refresh runs before the home screen loads
 - Persistent user identity stored in AsyncStorage (UUID generated once on first launch)
+
+---
+
+## UI Design
+
+The app uses an Instagram-inspired dark design system applied consistently across every screen.
+
+### Design Tokens (`src/constants/colors.js`)
+
+| Token | Value | Usage |
+|---|---|---|
+| `background` | `#0A0A0A` | Screen backgrounds |
+| `surface` | `#1A1A1A` | Cards and elevated containers |
+| `surfaceAlt` | `#242424` | Secondary surfaces, active tab fills |
+| `primary` | `#1DB954` | Spotify green — CTA buttons, active states |
+| `border` | `rgba(255,255,255,0.08)` | Subtle card and input borders |
+| `borderStrong` | `rgba(255,255,255,0.14)` | Focused borders |
+| `inputBg` | `#161616` | Text input backgrounds |
+
+### Visual Style
+- **Buttons** — rounded rectangles with layered box shadows; primary actions glow in Spotify green (`shadowColor: primary, elevation: 6–10`), secondary actions use a neutral dark shadow
+- **Cards** — thin `border` + drop shadow for depth on every list row and content card
+- **Bottom tab bar** — borderless with a strong upward shadow (`elevation: 20`); active tab shows a green indicator bar above its icon; labels are tight and bold
+- **Headers** — `fontWeight: 800`, italic app name on the Home screen with a glowing green avatar ring
+- **Discover action buttons** — square-rounded corners (`borderRadius: 20`) instead of circles, with colored shadows matching their action (green glow for Like, neutral shadow for Pass)
 
 ---
 
@@ -109,7 +134,7 @@ Scan the QR code with Expo Go.
 ```
 src/
 ├── constants/
-│   ├── colors.js               # Color tokens
+│   ├── colors.js               # Color tokens (background, surface, border, shadow, inputBg)
 │   └── index.js                # Scopes, sync intervals, DB keys
 ├── hooks/
 │   ├── useAuth.js              # Persistent UID + Spotify token with silent refresh
@@ -117,16 +142,16 @@ src/
 │   ├── useRoom.js              # Room subscription and sync orchestration
 │   └── useRoomContext.js       # Broadcast ref shared across screens
 ├── navigation/
-│   └── AppNavigator.js         # Stack + bottom tab navigator, auth gate
+│   └── AppNavigator.js         # Stack + bottom tab navigator, auth gate, Instagram-style tab bar
 ├── screens/
 │   ├── LoginScreen.js          # Spotify OAuth with PKCE
-│   ├── HomeScreen.js           # Create / join room
+│   ├── HomeScreen.js           # Create / join room — boxed shadow buttons
 │   ├── RoomScreen.js           # Live room: playback, chat, listeners, rating
 │   ├── SearchScreen.js         # Spotify track search (host only)
 │   ├── ProfileScreen.js        # User profile editor
 │   ├── ProfileSetupScreen.js   # First-time profile creation
 │   ├── DiscoverScreen.js       # Swipe cards ranked by taste similarity
-│   ├── MatchesScreen.js        # List of mutual matches
+│   ├── MatchesScreen.js        # List of mutual matches with shadow cards
 │   ├── MatchChatScreen.js      # Match chat with profile reveal and Jam Together
 │   ├── FriendsScreen.js        # Friend requests, search, friends list
 │   ├── DMListScreen.js         # All direct message conversations
@@ -143,6 +168,7 @@ src/
 └── utils/
     ├── syncEngine.js           # Drift detection and seek logic
     └── similarity.js           # Cosine and Jaccard similarity for taste matching
+metro.config.js                 # Expo Metro config (required for @react-navigation asset resolution)
 ```
 
 ---
@@ -190,10 +216,10 @@ userDMs/$uid/$dmId
 | Event | Behavior |
 |---|---|
 | Host changes track | Firebase playback node updated with track URI, position, and timestamp |
-| Listener receives update | Calculates network delay from updatedAt, seeks to positionMs + delay |
-| Drift correction (every 30s) | Listener fetches local Spotify position, seeks if drift exceeds 2000ms |
+| Listener receives update | Calculates network delay from `updatedAt`, seeks to `positionMs + delay` |
+| Drift correction (every 30s) | Listener fetches local Spotify position, seeks if drift exceeds 2000 ms |
 | Listener joins mid-song | Same sync logic on first snapshot |
-| Host ends room | ended: true written to room, listeners shown an alert and returned to Home |
+| Host ends room | `ended: true` written to room, listeners shown an alert and returned to Home |
 
 ---
 
@@ -208,6 +234,7 @@ userDMs/$uid/$dmId
 | Real-time sync | Firebase Realtime Database |
 | Persistence | AsyncStorage (UID, token, refresh token) |
 | Gestures | react-native-gesture-handler |
+| Bundler | Expo Metro config (`metro.config.js`) |
 
 ---
 
@@ -215,5 +242,5 @@ userDMs/$uid/$dmId
 
 - Spotify Premium is required for playback control via the API
 - The Spotify app must be open and active on each device for sync to work
-- Sync tolerance is approximately 1-2 seconds over a typical internet connection
+- Sync tolerance is approximately 1–2 seconds over a typical internet connection
 - Anonymous profiles use a custom emoji and nickname — no photo until both matched users opt in
