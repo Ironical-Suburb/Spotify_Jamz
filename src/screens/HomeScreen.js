@@ -3,10 +3,13 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, StatusBar, ScrollView,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { createRoom, joinRoom } from "@services/roomService";
 import { useAuth } from "@hooks/useAuth";
 import { useProfile } from "@hooks/useProfile";
 import { COLORS } from "@constants";
+import AvatarCircle from "@components/AvatarCircle";
+import GradientButton from "@components/GradientButton";
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -58,15 +61,18 @@ export default function HomeScreen({ navigation }) {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Text style={styles.appName}>Jam Sesh</Text>
+        <View>
+          <Text style={styles.appName}>
+            <Text style={styles.appNameWhite}>Tune</Text>
+            <Text style={styles.appNamePink}>Match</Text>
+          </Text>
+        </View>
         <TouchableOpacity
           style={styles.avatarBtn}
           onPress={() => navigation.navigate("Profile")}
           activeOpacity={0.8}
         >
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarEmoji}>{profile?.emoji ?? "🎵"}</Text>
-          </View>
+          <AvatarCircle name={displayName} size={44} />
         </TouchableOpacity>
       </View>
 
@@ -76,30 +82,36 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.greetingSub}>Ready to jam with someone?</Text>
       </View>
 
-      {/* Main card */}
+      {/* Create room card */}
       <View style={styles.card}>
-        <TouchableOpacity style={styles.createBtn} onPress={handleCreate} disabled={loading} activeOpacity={0.85}>
-          {loading ? (
-            <ActivityIndicator color={COLORS.background} />
-          ) : (
-            <View>
-              <Text style={styles.createBtnTitle}>Create a Room</Text>
-              <Text style={styles.createBtnSub}>Start a session · share the code</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <LinearGradient
+          colors={["#2A0A4A", "#1A0835"]}
+          style={styles.createBanner}
+        >
+          <Text style={styles.createBannerEmoji}>🎵</Text>
+          <View>
+            <Text style={styles.createBannerTitle}>Host a Room</Text>
+            <Text style={styles.createBannerSub}>Start a session · share the code</Text>
+          </View>
+        </LinearGradient>
+
+        <GradientButton
+          onPress={handleCreate}
+          disabled={loading}
+          loading={loading}
+          label="Create a Room"
+          style={styles.createBtnWrap}
+        />
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>or join one</Text>
           <View style={styles.dividerLine} />
         </View>
 
+        {/* Join row */}
         <View style={styles.joinContainer}>
-          <View style={styles.joinHeader}>
-            <Text style={styles.joinTitle}>Join a Room</Text>
-            <Text style={styles.joinSub}>Enter a code to vibe together</Text>
-          </View>
+          <Text style={styles.joinTitle}>Enter room code</Text>
           <View style={styles.joinRow}>
             <TextInput
               style={styles.codeInput}
@@ -113,13 +125,13 @@ export default function HomeScreen({ navigation }) {
               onSubmitEditing={handleJoin}
             />
             <TouchableOpacity
-              style={[styles.joinBtn, !roomCode.trim() && styles.joinBtnDisabled]}
+              style={[styles.joinBtn, (!roomCode.trim() || loading) && styles.joinBtnDisabled]}
               onPress={handleJoin}
               disabled={loading || !roomCode.trim()}
               activeOpacity={0.85}
             >
-              <Text style={[styles.joinBtnText, !roomCode.trim() && styles.joinBtnTextDisabled]}>
-                Join
+              <Text style={[styles.joinBtnText, !roomCode.trim() && styles.joinBtnTextDimmed]}>
+                Join →
               </Text>
             </TouchableOpacity>
           </View>
@@ -127,24 +139,36 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Quick-access tiles */}
+      <Text style={styles.sectionHeader}>Explore</Text>
       <View style={styles.tiles}>
         <TouchableOpacity
           style={styles.tile}
           onPress={() => navigation.navigate("Discover")}
           activeOpacity={0.8}
         >
-          <Text style={styles.tileEmoji}>🔥</Text>
-          <Text style={styles.tileTitle}>Discover</Text>
-          <Text style={styles.tileSub}>Find your music match</Text>
+          <LinearGradient
+            colors={["#2A0A4A", "#1E1E3A"]}
+            style={styles.tileGradient}
+          >
+            <Text style={styles.tileEmoji}>🔥</Text>
+            <Text style={styles.tileTitle}>Discover</Text>
+            <Text style={styles.tileSub}>Find your music match</Text>
+          </LinearGradient>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.tile}
           onPress={() => navigation.navigate("Matches")}
           activeOpacity={0.8}
         >
-          <Text style={styles.tileEmoji}>💜</Text>
-          <Text style={styles.tileTitle}>Matches</Text>
-          <Text style={styles.tileSub}>Chat & jam together</Text>
+          <LinearGradient
+            colors={["#1A0840", "#1E1E3A"]}
+            style={styles.tileGradient}
+          >
+            <Text style={styles.tileEmoji}>💜</Text>
+            <Text style={styles.tileTitle}>Matches</Text>
+            <Text style={styles.tileSub}>Chat & jam together</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -153,41 +177,59 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: COLORS.background },
-  container: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 32 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 32 },
-  appName: { fontSize: 20, fontWeight: "800", color: COLORS.textPrimary, letterSpacing: -0.5 },
-  avatarBtn: { padding: 2 },
-  avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.primary },
-  avatarEmoji: { fontSize: 20 },
+  container: { paddingHorizontal: 22, paddingTop: 60, paddingBottom: 40 },
 
-  greetingRow: { marginBottom: 32 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
+  appName: { fontSize: 28, fontWeight: "900", letterSpacing: -0.5 },
+  appNameWhite: { color: COLORS.textPrimary },
+  appNamePink: { color: COLORS.primary },
+  avatarBtn: {},
+
+  greetingRow: { marginBottom: 28 },
   greeting: { fontSize: 26, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 4 },
   greetingSub: { fontSize: 14, color: COLORS.textSecondary },
 
-  card: { backgroundColor: COLORS.surface, borderRadius: 24, padding: 20, gap: 16, marginBottom: 24 },
+  card: { backgroundColor: COLORS.surface, borderRadius: 24, overflow: "hidden", marginBottom: 28 },
+  createBanner: { flexDirection: "row", alignItems: "center", gap: 14, padding: 20 },
+  createBannerEmoji: { fontSize: 36 },
+  createBannerTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: "bold", marginBottom: 2 },
+  createBannerSub: { color: COLORS.textSecondary, fontSize: 12 },
+  createBtnWrap: { marginHorizontal: 16, marginBottom: 6 },
 
-  createBtn: { backgroundColor: COLORS.primary, borderRadius: 16, padding: 20 },
-  createBtnTitle: { color: COLORS.background, fontSize: 17, fontWeight: "bold", marginBottom: 4 },
-  createBtnSub: { color: COLORS.background + "BB", fontSize: 13 },
-
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 16, marginVertical: 14 },
   dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.surfaceAlt },
   dividerText: { color: COLORS.textMuted, fontSize: 12 },
 
-  joinContainer: { backgroundColor: COLORS.surfaceAlt, borderRadius: 16, padding: 20 },
-  joinHeader: { marginBottom: 16 },
-  joinTitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: "bold", marginBottom: 4 },
-  joinSub: { color: COLORS.textSecondary, fontSize: 13 },
+  joinContainer: { margin: 16, marginTop: 0 },
+  joinTitle: { color: COLORS.textSecondary, fontSize: 12, marginBottom: 10, fontWeight: "600", letterSpacing: 0.5 },
   joinRow: { flexDirection: "row", gap: 10 },
-  codeInput: { flex: 1, backgroundColor: COLORS.background, color: COLORS.textPrimary, borderRadius: 12, padding: 14, fontSize: 18, fontWeight: "bold", letterSpacing: 8, textAlign: "center" },
-  joinBtn: { backgroundColor: COLORS.background, borderRadius: 12, paddingHorizontal: 22, justifyContent: "center", alignItems: "center", borderWidth: 1.5, borderColor: COLORS.primary },
-  joinBtnDisabled: { borderColor: "transparent" },
-  joinBtnText: { color: COLORS.primary, fontWeight: "bold", fontSize: 15 },
-  joinBtnTextDisabled: { color: COLORS.textMuted },
+  codeInput: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceHigh,
+    color: COLORS.textPrimary,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 20,
+    fontWeight: "bold",
+    letterSpacing: 10,
+    textAlign: "center",
+  },
+  joinBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  joinBtnDisabled: { backgroundColor: COLORS.surfaceHigh },
+  joinBtnText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
+  joinBtnTextDimmed: { color: COLORS.textMuted },
 
+  sectionHeader: { color: COLORS.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 12 },
   tiles: { flexDirection: "row", gap: 12 },
-  tile: { flex: 1, backgroundColor: COLORS.surface, borderRadius: 18, padding: 18, alignItems: "center" },
-  tileEmoji: { fontSize: 32, marginBottom: 8 },
+  tile: { flex: 1, borderRadius: 20, overflow: "hidden" },
+  tileGradient: { padding: 18, alignItems: "center", minHeight: 110, justifyContent: "center" },
+  tileEmoji: { fontSize: 30, marginBottom: 8 },
   tileTitle: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "bold", marginBottom: 4 },
   tileSub: { color: COLORS.textSecondary, fontSize: 11, textAlign: "center" },
 });

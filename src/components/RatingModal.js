@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "@constants";
+import GradientButton from "@components/GradientButton";
 
 export default function RatingModal({ visible, trackName, artistName, onRate, onClose }) {
   const [rating, setRating] = useState(5);
@@ -13,30 +15,41 @@ export default function RatingModal({ visible, trackName, artistName, onRate, on
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
+          <View style={styles.handle} />
           <Text style={styles.label}>RATE THIS TRACK</Text>
           <Text style={styles.trackName} numberOfLines={1}>{trackName}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{artistName}</Text>
 
           <View style={styles.pipsRow}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <TouchableOpacity key={n} onPress={() => setRating(n)} style={styles.pipWrapper}>
-                <View style={[styles.pip, n <= rating && styles.pipFilled]} />
+              <TouchableOpacity key={n} onPress={() => setRating(n)} style={styles.pipWrapper} activeOpacity={0.7}>
+                {n <= rating ? (
+                  <LinearGradient
+                    colors={[COLORS.gradientStart, COLORS.gradientEnd]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={[styles.pip, styles.pipFilled]}
+                  />
+                ) : (
+                  <View style={styles.pip} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={styles.ratingValue}>{rating} / 10</Text>
+          <Text style={styles.ratingValue}>
+            <Text style={styles.ratingNum}>{rating}</Text>
+            <Text style={styles.ratingDen}> / 10</Text>
+          </Text>
 
           <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.rateBtn}
+            <GradientButton
               onPress={() => { onRate(rating); onClose(); }}
-            >
-              <Text style={styles.rateBtnText}>Rate ❤️</Text>
-            </TouchableOpacity>
+              label="Rate ❤️"
+              style={styles.rateBtnWrap}
+            />
           </View>
         </View>
       </View>
@@ -47,89 +60,55 @@ export default function RatingModal({ visible, trackName, artistName, onRate, on
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "flex-end",
   },
   card: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 28,
     paddingBottom: 40,
     alignItems: "center",
   },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.surfaceHigh,
+    marginBottom: 24,
+  },
   label: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    letterSpacing: 2,
-    marginBottom: 12,
+    color: COLORS.textMuted, fontSize: 11, letterSpacing: 2,
+    fontWeight: "700", marginBottom: 12,
   },
   trackName: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 4,
+    color: COLORS.textPrimary, fontSize: 18, fontWeight: "bold",
+    textAlign: "center", marginBottom: 4,
   },
   artistName: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 28,
+    color: COLORS.textSecondary, fontSize: 14,
+    textAlign: "center", marginBottom: 28,
   },
-  pipsRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 12,
-  },
-  pipWrapper: {
-    padding: 4,
-  },
+
+  pipsRow: { flexDirection: "row", gap: 5, marginBottom: 16 },
+  pipWrapper: { padding: 4 },
   pip: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.textMuted,
+    width: 22, height: 22, borderRadius: 5,
+    backgroundColor: COLORS.surfaceHigh,
+    borderWidth: 1.5, borderColor: COLORS.surfaceAlt,
   },
-  pipFilled: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  ratingValue: {
-    color: COLORS.textPrimary,
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 28,
-  },
-  btnRow: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
+  pipFilled: { borderColor: "transparent" },
+
+  ratingValue: { marginBottom: 28 },
+  ratingNum: { color: COLORS.primary, fontSize: 32, fontWeight: "900" },
+  ratingDen: { color: COLORS.textMuted, fontSize: 20, fontWeight: "600" },
+
+  btnRow: { flexDirection: "row", gap: 12, width: "100%" },
   cancelBtn: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: COLORS.textMuted,
-    borderRadius: 50,
-    padding: 14,
-    alignItems: "center",
+    borderWidth: 1.5, borderColor: COLORS.surfaceHigh,
+    borderRadius: 50, padding: 15,
+    alignItems: "center", justifyContent: "center",
   },
-  cancelText: {
-    color: COLORS.textSecondary,
-    fontWeight: "bold",
-  },
-  rateBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 50,
-    padding: 14,
-    alignItems: "center",
-  },
-  rateBtnText: {
-    color: COLORS.background,
-    fontWeight: "bold",
-    fontSize: 15,
-  },
+  cancelText: { color: COLORS.textSecondary, fontWeight: "bold", fontSize: 15 },
+  rateBtnWrap: { flex: 1 },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View, Text } from "react-native";
+import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -26,85 +26,57 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const stackOptions = {
-  headerStyle: { backgroundColor: COLORS.surface },
+  headerStyle: { backgroundColor: COLORS.surface, shadowColor: "transparent", elevation: 0, borderBottomWidth: 0 },
   headerTintColor: COLORS.textPrimary,
-  headerTitleStyle: { fontWeight: "bold" },
+  headerTitleStyle: { fontWeight: "bold", fontSize: 17 },
   cardStyle: { backgroundColor: COLORS.background },
 };
 
-const tabBarOptions = {
-  tabBarStyle: {
-    backgroundColor: COLORS.surface,
-    borderTopColor: COLORS.surfaceAlt,
-    borderTopWidth: 1,
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 6,
-  },
-  tabBarActiveTintColor: COLORS.primary,
-  tabBarInactiveTintColor: COLORS.textMuted,
-  tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-  headerStyle: { backgroundColor: COLORS.surface },
-  headerTintColor: COLORS.textPrimary,
-  headerTitleStyle: { fontWeight: "bold" },
+const TAB_ICONS = {
+  Home: { active: "🎵", inactive: "🎵" },
+  Discover: { active: "🔥", inactive: "🔥" },
+  Matches: { active: "💜", inactive: "💜" },
+  Friends: { active: "👥", inactive: "👥" },
+  Stats: { active: "📊", inactive: "📊" },
 };
 
-function TabIcon({ emoji, focused }) {
+function TabIcon({ name, focused }) {
   return (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+      <Text style={[styles.tabIconEmoji, { opacity: focused ? 1 : 0.45 }]}>
+        {TAB_ICONS[name]?.active ?? "●"}
+      </Text>
+    </View>
   );
 }
 
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={tabBarOptions}>
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🎵" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
-        options={{
-          title: "Discover",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔥" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Matches"
-        component={MatchesScreen}
-        options={{
-          title: "Matches",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💜" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Friends"
-        component={FriendsScreen}
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👥" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Stats"
-        component={StatsScreen}
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
-        }}
-      />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        headerStyle: { backgroundColor: COLORS.surface, shadowColor: "transparent", elevation: 0, borderBottomWidth: 0 },
+        headerTintColor: COLORS.textPrimary,
+        headerTitleStyle: { fontWeight: "bold", fontSize: 17 },
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Discover" component={DiscoverScreen} options={{ title: "Discover" }} />
+      <Tab.Screen name="Matches" component={MatchesScreen} options={{ title: "Matches" }} />
+      <Tab.Screen name="Friends" component={FriendsScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Stats" component={StatsScreen} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }
 
 const Loader = () => (
-  <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: "center", alignItems: "center" }}>
-    <ActivityIndicator color={COLORS.primary} size="large" />
+  <View style={styles.loader}>
+    <Text style={styles.loaderLogo}>🎵</Text>
+    <ActivityIndicator color={COLORS.primary} size="large" style={{ marginTop: 16 }} />
   </View>
 );
 
@@ -151,11 +123,7 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={stackOptions}>
         {!spotifyToken ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         ) : !hasProfile ? (
           <Stack.Screen
             name="ProfileSetup"
@@ -170,26 +138,10 @@ export default function AppNavigator() {
           />
         ) : (
           <>
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Room"
-              component={RoomScreen}
-              options={{ title: "Room" }}
-            />
-            <Stack.Screen
-              name="Search"
-              component={SearchScreen}
-              options={{ title: "Search Tracks" }}
-            />
-            <Stack.Screen
-              name="Profile"
-              component={ProfileScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="Room" component={RoomScreen} options={{ title: "Jam Session" }} />
+            <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Pick a Song" }} />
+            <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="MatchChat"
               component={MatchChatScreen}
@@ -197,11 +149,7 @@ export default function AppNavigator() {
                 title: `${route.params?.otherEmoji ?? "🎵"} ${route.params?.otherNickname ?? "Match"}`,
               })}
             />
-            <Stack.Screen
-              name="DMList"
-              component={DMListScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="DMList" component={DMListScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="DMChat"
               component={DMChatScreen}
@@ -215,3 +163,41 @@ export default function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: COLORS.surface,
+    borderTopColor: COLORS.surfaceAlt,
+    borderTopWidth: 1,
+    height: 64,
+    paddingBottom: 10,
+    paddingTop: 6,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  tabIconWrap: {
+    width: 36,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabIconWrapActive: {
+    backgroundColor: COLORS.primary + "22",
+  },
+  tabIconEmoji: {
+    fontSize: 18,
+  },
+  loader: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loaderLogo: {
+    fontSize: 56,
+  },
+});

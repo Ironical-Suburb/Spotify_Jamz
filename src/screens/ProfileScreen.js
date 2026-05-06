@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Switch, ActivityIndicator, Image, Alert, SafeAreaView
+  ScrollView, Switch, ActivityIndicator, Alert, SafeAreaView,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { updateProfile } from "@services/userService";
 import { useAuth } from "@hooks/useAuth";
 import { useProfile } from "@hooks/useProfile";
 import { COLORS } from "@constants";
+import AvatarCircle from "@components/AvatarCircle";
+import GradientButton from "@components/GradientButton";
 
 const EMOJI_OPTIONS = [
   "🎵","🎧","🎸","🎹","🎺","🎻","🥁","🎤",
@@ -62,110 +65,87 @@ export default function ProfileScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
 
-        {/* ── Custom Top Bar ── */}
+        {/* Top bar */}
         <View style={styles.topBar}>
-          {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.iconBtn} 
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <View style={styles.iconCircle}>
-              <Text style={styles.iconEmoji}>⬅️</Text>
-            </View>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>
-            {editing ? "Edit Profile" : "Profile"}
-          </Text>
-
-          {/* Edit/Cancel Button */}
-          <TouchableOpacity 
-            style={styles.iconBtn} 
+          <Text style={styles.headerTitle}>{editing ? "Edit Profile" : "Profile"}</Text>
+          <TouchableOpacity
+            style={[styles.editBtn, editing && styles.editBtnActive]}
             onPress={() => setEditing(!editing)}
             activeOpacity={0.8}
           >
-            <View style={[styles.iconCircle, editing && styles.iconCircleActive]}>
-              <Text style={styles.iconEmoji}>{editing ? "❌" : "✏️"}</Text>
-            </View>
+            <Text style={styles.editBtnText}>{editing ? "✕" : "✏️"}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarEmoji}>{selectedEmoji}</Text>
-          </View>
-          {profile.spotifyPfp && (
-            <Image source={{ uri: profile.spotifyPfp }} style={styles.spotifyPfp} />
-          )}
-          <View style={[styles.statusDot, { backgroundColor: COLORS.primary }]} />
-        </View>
+        {/* Avatar section */}
+        <View style={styles.avatarSection}>
+          <LinearGradient
+            colors={[COLORS.gradientStart + "30", COLORS.gradientEnd + "30"]}
+            style={styles.avatarGlow}
+          >
+            <AvatarCircle name={profile.nickname} size={96} useGradient />
+          </LinearGradient>
+          <View style={styles.onlineDot} />
 
-        {/* Nickname */}
-        {editing ? (
-          <>
-            <Text style={styles.sectionLabel}>Nickname</Text>
+          {editing ? (
             <TextInput
-              style={styles.input}
+              style={styles.nicknameInput}
               value={nickname}
               onChangeText={setNickname}
               maxLength={20}
               autoCapitalize="none"
               placeholderTextColor={COLORS.textMuted}
+              textAlign="center"
             />
-          </>
-        ) : (
-          <Text style={styles.nickname}>{profile.nickname}</Text>
-        )}
+          ) : (
+            <Text style={styles.nickname}>{profile.nickname}</Text>
+          )}
+          <Text style={styles.spotifyName}>🎵 {profile.spotifyDisplayName}</Text>
+        </View>
 
-        <Text style={styles.spotifyName}>🎵 {profile.spotifyDisplayName}</Text>
-
-        {/* Emoji picker (edit mode only) */}
+        {/* Emoji picker */}
         {editing && (
-          <>
-            <Text style={styles.sectionLabel}>Change emoji</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>CHOOSE YOUR EMOJI</Text>
             <View style={styles.emojiGrid}>
               {EMOJI_OPTIONS.map((emoji) => (
                 <TouchableOpacity
                   key={emoji}
-                  style={[
-                    styles.emojiOption,
-                    selectedEmoji === emoji && styles.emojiOptionSelected,
-                  ]}
+                  style={[styles.emojiOption, selectedEmoji === emoji && styles.emojiOptionSelected]}
                   onPress={() => setSelectedEmoji(emoji)}
                 >
                   <Text style={styles.emojiOptionText}>{emoji}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </>
+          </View>
         )}
 
-        {/* Public / Private toggle */}
-        <View style={styles.toggleRow}>
+        {/* Visibility toggle */}
+        <View style={styles.toggleCard}>
           <View style={styles.toggleInfo}>
             <Text style={styles.toggleLabel}>
               {isPublic ? "🌐 Public profile" : "🔒 Private profile"}
             </Text>
-            <Text style={styles.toggleSubLabel}>
-              {isPublic
-                ? "Anyone can find and add you"
-                : "Only room members can add you"}
+            <Text style={styles.toggleSub}>
+              {isPublic ? "Anyone can find and add you" : "Only room members can add you"}
             </Text>
           </View>
           <Switch
             value={isPublic}
             onValueChange={editing ? setIsPublic : undefined}
             disabled={!editing}
-            trackColor={{ false: COLORS.surfaceAlt, true: COLORS.primary }}
-            thumbColor={COLORS.textPrimary}
+            trackColor={{ false: COLORS.surfaceHigh, true: COLORS.primary }}
+            thumbColor="#FFFFFF"
           />
         </View>
 
         {/* Spotify stats */}
         <View style={styles.statsCard}>
-          <Text style={styles.sectionLabel}>Spotify stats</Text>
+          <Text style={styles.sectionLabel}>SPOTIFY STATS</Text>
           {profile.followerCount > 0 && (
             <Text style={styles.statRow}>👥 {profile.followerCount} followers</Text>
           )}
@@ -182,22 +162,18 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.privateNote}>🔒 Only visible to you</Text>
         </View>
 
-        {/* Save button */}
+        {/* Save */}
         {editing && (
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          <GradientButton
             onPress={handleSave}
             disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color={COLORS.background} />
-            ) : (
-              <Text style={styles.saveBtnText}>Save changes</Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            label="Save Changes"
+            style={styles.saveBtnWrap}
+          />
         )}
 
-        {/* Switch account */}
+        {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>⇄ Switch Spotify Account</Text>
         </TouchableOpacity>
@@ -210,62 +186,96 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
-  container: { padding: 24, paddingBottom: 48, alignItems: "center" },
-  
-  // ── Top Bar Styles ──
-  topBar: { 
-    width: "100%", 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "space-between", 
-    marginBottom: 32,
-    marginTop: 8,
-  },
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: COLORS.textPrimary,
-  },
-  iconBtn: { padding: 2 },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: COLORS.surfaceAlt,
-  },
-  iconCircleActive: {
-    borderColor: COLORS.primary, // Highlights the edit button when editing
-  },
-  iconEmoji: { fontSize: 20 },
+  container: { padding: 22, paddingBottom: 48, alignItems: "center" },
 
-  // ── Rest of the styles ──
-  avatarContainer: { position: "relative", marginBottom: 16 },
-  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center" },
-  avatarEmoji: { fontSize: 52 },
-  spotifyPfp: { position: "absolute", bottom: 0, right: -4, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: COLORS.background },
-  statusDot: { position: "absolute", top: 4, right: 4, width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: COLORS.background },
+  topBar: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 32,
+    marginTop: 4,
+  },
+  headerTitle: { fontSize: 17, fontWeight: "bold", color: COLORS.textPrimary },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: COLORS.surfaceAlt,
+  },
+  backBtnText: { color: COLORS.textPrimary, fontSize: 18, fontWeight: "bold" },
+  editBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: COLORS.surfaceAlt,
+  },
+  editBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + "22" },
+  editBtnText: { fontSize: 18 },
+
+  avatarSection: { alignItems: "center", marginBottom: 28, position: "relative" },
+  avatarGlow: {
+    width: 116, height: 116, borderRadius: 58,
+    justifyContent: "center", alignItems: "center",
+    marginBottom: 16,
+  },
+  onlineDot: {
+    position: "absolute", top: 8, right: "31%",
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: COLORS.liveGreen,
+    borderWidth: 2, borderColor: COLORS.background,
+  },
   nickname: { fontSize: 24, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 4 },
-  spotifyName: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 24 },
-  sectionLabel: { alignSelf: "flex-start", color: COLORS.textMuted, fontSize: 11, letterSpacing: 1, marginBottom: 8, marginTop: 16 },
-  input: { width: "100%", backgroundColor: COLORS.surface, color: COLORS.textPrimary, borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 16 },
-  emojiGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginBottom: 16, gap: 8 },
-  emojiOption: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center" },
-  emojiOptionSelected: { borderWidth: 2, borderColor: COLORS.primary },
+  nicknameInput: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: COLORS.textPrimary,
+    borderBottomWidth: 1.5,
+    borderBottomColor: COLORS.primary,
+    paddingVertical: 4,
+    minWidth: 140,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  spotifyName: { fontSize: 13, color: COLORS.textSecondary },
+
+  section: { width: "100%", marginBottom: 20 },
+  sectionLabel: {
+    color: COLORS.textMuted, fontSize: 10, letterSpacing: 2,
+    fontWeight: "700", marginBottom: 12,
+  },
+  emojiGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
+  emojiOption: {
+    width: 46, height: 46, borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center", alignItems: "center",
+  },
+  emojiOptionSelected: {
+    borderWidth: 2, borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + "18",
+  },
   emojiOptionText: { fontSize: 22 },
-  toggleRow: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: COLORS.surface, borderRadius: 12, padding: 16, marginVertical: 16 },
+
+  toggleCard: {
+    width: "100%",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: COLORS.surface, borderRadius: 16,
+    padding: 18, marginBottom: 16,
+  },
   toggleInfo: { flex: 1, marginRight: 16 },
   toggleLabel: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "bold", marginBottom: 4 },
-  toggleSubLabel: { color: COLORS.textSecondary, fontSize: 13 },
-  statsCard: { width: "100%", backgroundColor: COLORS.surface, borderRadius: 12, padding: 16, marginBottom: 24 },
+  toggleSub: { color: COLORS.textSecondary, fontSize: 13 },
+
+  statsCard: {
+    width: "100%",
+    backgroundColor: COLORS.surface, borderRadius: 16,
+    padding: 18, marginBottom: 24,
+  },
   statRow: { color: COLORS.textSecondary, fontSize: 14, marginBottom: 6 },
   privateNote: { color: COLORS.textMuted, fontSize: 12, marginTop: 8, fontStyle: "italic" },
-  saveBtn: { width: "100%", backgroundColor: COLORS.primary, borderRadius: 50, padding: 16, alignItems: "center", marginBottom: 16 },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 16 },
-  logoutBtn: { padding: 12, marginTop: 8 },
+
+  saveBtnWrap: { width: "100%", marginBottom: 16 },
+
+  logoutBtn: { padding: 12, marginTop: 4 },
   logoutText: { color: COLORS.textSecondary, fontSize: 14 },
 });

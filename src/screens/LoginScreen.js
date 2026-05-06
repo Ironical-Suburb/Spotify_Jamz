@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
+  StatusBar, Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSpotifyAuth } from "@services/spotify";
 import { useAuth } from "@hooks/useAuth";
@@ -11,6 +13,12 @@ import { redirectUri } from "@services/spotify";
 
 const PKCE_KEY = "@jamz_pkce_verifier";
 
+const SERVICES = [
+  { key: "spotify",  label: "Spotify",       dot: "#1DB954", active: true  },
+  { key: "apple",    label: "Apple Music",    dot: "#FC3C44", active: false },
+  { key: "youtube",  label: "YouTube Music",  dot: "#FF0000", active: false },
+];
+
 export default function LoginScreen() {
   const { request, response, promptAsync } = useSpotifyAuth();
   const { saveTokens } = useAuth();
@@ -19,7 +27,6 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!response) return;
-
     if (response.type === "success") {
       setLoading(true);
       handleTokenExchange(response.params.code);
@@ -34,10 +41,7 @@ export default function LoginScreen() {
 
   const handleTokenExchange = async (code) => {
     try {
-      // Use the persisted verifier — request.codeVerifier may belong to a
-      // fresh hook instance created after the app remounted on redirect.
       const codeVerifier = await AsyncStorage.getItem(PKCE_KEY);
-
       const result = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -49,9 +53,7 @@ export default function LoginScreen() {
           code_verifier: codeVerifier,
         }).toString(),
       });
-
       const data = await result.json();
-
       if (data.access_token) {
         await AsyncStorage.removeItem(PKCE_KEY);
         await saveTokens(data);
@@ -66,10 +68,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleLogin = async () => {
+  const handleSpotifyLogin = async () => {
     setError(null);
     try {
-      // Persist the verifier BEFORE the browser opens so it survives a remount
       if (request?.codeVerifier) {
         await AsyncStorage.setItem(PKCE_KEY, request.codeVerifier);
       }
@@ -83,53 +84,203 @@ export default function LoginScreen() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>🎵</Text>
-      <Text style={styles.title}>Spotify Jam Sesh</Text>
-      <Text style={styles.subtitle}>
-        Listen together, no matter where you are.
-      </Text>
+  const handleUnavailable = (label) => {
+    Alert.alert("Coming Soon", `${label} integration is coming soon! Only Spotify is supported right now.`);
+  };
 
+  return (
+    <LinearGradient
+      colors={["#0D0D1A", "#131325", "#0D0D1A"]}
+      locations={[0, 0.5, 1]}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" />
+
+      {/* Decorative bg blobs */}
+      <View style={styles.blob1} />
+      <View style={styles.blob2} />
+
+      {/* Brand */}
+      <View style={styles.brandRow}>
+        <Text style={styles.brandText}>
+          <Text style={styles.brandWhite}>Tune</Text>
+          <Text style={styles.brandPurple}>Match</Text>
+        </Text>
+        <Text style={styles.brandSub}>Find your sonic twin</Text>
+      </View>
+
+      {/* Headphones icon circle */}
+      <View style={styles.iconOuter}>
+        <View style={styles.iconRing}>
+          <View style={styles.iconInner}>
+            <Text style={styles.iconEmoji}>🎧</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Heading & description */}
+      <View style={styles.textBlock}>
+        <Text style={styles.heading}>Connect your{"\n"}music account</Text>
+        <Text style={styles.description}>
+          We'll analyse your taste and find people who{"\n"}hear the world like you.
+        </Text>
+      </View>
+
+      {/* Error banner */}
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>⚠️ {error}</Text>
+          <TouchableOpacity onPress={() => setError(null)} style={styles.errorDismiss}>
+            <Text style={styles.errorDismissText}>Dismiss</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      <TouchableOpacity
-        style={[styles.button, (!request || loading) && styles.buttonDisabled]}
-        onPress={handleLogin}
-        disabled={!request || loading}
-      >
-        {loading
-          ? <ActivityIndicator color={COLORS.background} />
-          : <Text style={styles.buttonText}>{error ? "Try Again" : "Connect with Spotify"}</Text>
-        }
-      </TouchableOpacity>
+      {/* Service rows */}
+      <View style={styles.serviceList}>
+        {SERVICES.map(({ key, label, dot, active }) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.serviceRow, !active && styles.serviceRowDisabled]}
+            onPress={active ? handleSpotifyLogin : () => handleUnavailable(label)}
+            activeOpacity={active ? 0.75 : 0.6}
+            accessibilityLabel={active ? `Connect with ${label}` : `${label} coming soon`}
+          >
+            {/* Left: dot + label */}
+            <View style={styles.serviceLeft}>
+              <View style={[styles.dot, { backgroundColor: active ? dot : COLORS.textMuted }]} />
+              <Text style={[styles.serviceLabel, !active && styles.serviceLabelDimmed]}>
+                {label}
+              </Text>
+            </View>
 
-      {error && (
-        <TouchableOpacity style={styles.resetBtn} onPress={() => { setError(null); setLoading(false); }}>
-          <Text style={styles.resetText}>← Start over</Text>
-        </TouchableOpacity>
-      )}
+            {/* Right: loading or connect text */}
+            {active && loading ? (
+              <ActivityIndicator color={COLORS.textSecondary} size="small" />
+            ) : (
+              <Text style={[styles.connectText, !active && styles.connectTextDimmed]}>
+                {active ? "Connect →" : "Coming soon"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.note}>Spotify Premium required for playback control.</Text>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: COLORS.background, alignItems: "center", justifyContent: "center", padding: 32 },
-  logo:           { fontSize: 72, marginBottom: 16 },
-  title:          { fontSize: 28, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 8 },
-  subtitle:       { fontSize: 16, color: COLORS.textSecondary, textAlign: "center", marginBottom: 48 },
-  errorBox:       { backgroundColor: "#2D1515", borderColor: COLORS.error, borderWidth: 1, borderRadius: 12, padding: 14, width: "100%", marginBottom: 16 },
-  errorText:      { color: COLORS.error, fontSize: 14, textAlign: "center" },
-  button:         { backgroundColor: COLORS.primary, paddingVertical: 16, paddingHorizontal: 40, borderRadius: 50, width: "100%", alignItems: "center", marginBottom: 12 },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText:     { color: COLORS.background, fontWeight: "bold", fontSize: 16 },
-  resetBtn:       { marginBottom: 24, padding: 8 },
-  resetText:      { color: COLORS.textSecondary, fontSize: 14 },
-  note:           { color: COLORS.textMuted, fontSize: 12, textAlign: "center", marginTop: 16 },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    paddingBottom: 40,
+  },
+
+  blob1: {
+    position: "absolute", top: -40, right: -80,
+    width: 260, height: 260, borderRadius: 130,
+    backgroundColor: COLORS.secondary + "1A",
+  },
+  blob2: {
+    position: "absolute", bottom: 60, left: -80,
+    width: 220, height: 220, borderRadius: 110,
+    backgroundColor: COLORS.primary + "14",
+  },
+
+  /* Brand */
+  brandRow: { alignItems: "center", marginBottom: 32 },
+  brandText: { fontSize: 34, fontWeight: "900", letterSpacing: -0.5 },
+  brandWhite: { color: COLORS.textPrimary },
+  brandPurple: { color: COLORS.secondary },
+  brandSub: { color: COLORS.textSecondary, fontSize: 14, marginTop: 4 },
+
+  /* Headphones circle */
+  iconOuter: {
+    marginBottom: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconRing: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary + "55",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconInner: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconEmoji: { fontSize: 52 },
+
+  /* Heading */
+  textBlock: { alignItems: "center", marginBottom: 28 },
+  heading: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    lineHeight: 36,
+    marginBottom: 12,
+  },
+  description: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+
+  /* Error */
+  errorBox: {
+    backgroundColor: "#2D1515",
+    borderColor: COLORS.error,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    width: "100%",
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  errorText: { color: COLORS.error, fontSize: 13, flex: 1 },
+  errorDismiss: { paddingLeft: 10 },
+  errorDismissText: { color: COLORS.textMuted, fontSize: 12 },
+
+  /* Service rows */
+  serviceList: { width: "100%", gap: 12, marginBottom: 28 },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+  },
+  serviceRowDisabled: { opacity: 0.55 },
+  serviceLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  dot: { width: 11, height: 11, borderRadius: 6 },
+  serviceLabel: { color: COLORS.textPrimary, fontSize: 16, fontWeight: "600" },
+  serviceLabelDimmed: { color: COLORS.textSecondary },
+  connectText: { color: COLORS.textSecondary, fontSize: 14 },
+  connectTextDimmed: { color: COLORS.textMuted, fontSize: 12 },
+
+  note: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    textAlign: "center",
+    lineHeight: 16,
+  },
 });

@@ -4,11 +4,18 @@ import {
   ActivityIndicator, Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@hooks/useAuth";
 import { fetchUserStats } from "@services/spotify";
 import { COLORS } from "@constants";
 
 const TIME_RANGES = ["4 Weeks", "6 Months", "All Time"];
+
+const BAR_COLORS = [
+  [COLORS.gradientStart, COLORS.gradientEnd],
+  ["#06B6D4", "#3B82F6"],
+  ["#10B981", "#F59E0B"],
+];
 
 export default function StatsScreen({ navigation }) {
   const { spotifyToken } = useAuth();
@@ -35,6 +42,7 @@ export default function StatsScreen({ navigation }) {
           <Text style={styles.headerTitle}>Your Stats</Text>
         </View>
 
+        {/* Time range tabs */}
         <View style={styles.tabContainer}>
           {TIME_RANGES.map((tab) => (
             <TouchableOpacity
@@ -42,9 +50,17 @@ export default function StatsScreen({ navigation }) {
               style={[styles.tab, activeTab === tab && styles.tabActive]}
               onPress={() => setActiveTab(tab)}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab}
-              </Text>
+              {activeTab === tab ? (
+                <LinearGradient
+                  colors={[COLORS.gradientStart + "44", COLORS.gradientEnd + "44"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.tabActiveBg}
+                >
+                  <Text style={[styles.tabText, styles.tabTextActive]}>{tab}</Text>
+                </LinearGradient>
+              ) : (
+                <Text style={styles.tabText}>{tab}</Text>
+              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -60,7 +76,7 @@ export default function StatsScreen({ navigation }) {
                   <Text style={styles.emptyText}>Not enough data yet!</Text>
                 ) : (
                   stats.artists.map((artist, index) => (
-                    <ArtistRow key={artist.id || index} artist={artist} rank={index + 1} />
+                    <ArtistRow key={artist.id || index} artist={artist} rank={index + 1} colorPair={BAR_COLORS[index % BAR_COLORS.length]} />
                   ))
                 )}
               </View>
@@ -71,7 +87,7 @@ export default function StatsScreen({ navigation }) {
                   <Text style={styles.emptyText}>Not enough data yet!</Text>
                 ) : (
                   stats.tracks.map((track, index) => (
-                    <TrackRow key={track.id || index} track={track} rank={index + 1} />
+                    <TrackRow key={track.id || index} track={track} rank={index + 1} colorPair={BAR_COLORS[index % BAR_COLORS.length]} />
                   ))
                 )}
               </View>
@@ -83,7 +99,7 @@ export default function StatsScreen({ navigation }) {
   );
 }
 
-function ArtistRow({ artist, rank }) {
+function ArtistRow({ artist, rank, colorPair }) {
   const imageUrl = artist.images?.[0]?.url;
   const popularity = artist.popularity ?? 0;
 
@@ -100,10 +116,14 @@ function ArtistRow({ artist, rank }) {
       <View style={styles.rowInfo}>
         <Text style={styles.rowName} numberOfLines={1}>{artist.name}</Text>
         <View style={styles.popRow}>
-          <View style={styles.popBar}>
-            <View style={[styles.popFill, { width: `${popularity}%` }]} />
+          <View style={styles.popTrack}>
+            <LinearGradient
+              colors={colorPair}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.popFill, { width: `${popularity}%` }]}
+            />
           </View>
-          <Text style={styles.popLabel}>{popularity} popularity</Text>
+          <Text style={styles.popLabel}>{popularity}</Text>
         </View>
         {artist.genres?.length > 0 && (
           <Text style={styles.genres} numberOfLines={1}>
@@ -115,7 +135,7 @@ function ArtistRow({ artist, rank }) {
   );
 }
 
-function TrackRow({ track, rank }) {
+function TrackRow({ track, rank, colorPair }) {
   const imageUrl = track.album?.images?.[0]?.url;
   const popularity = track.popularity ?? 0;
   const artistNames = track.artists?.map(a => a.name).join(", ") ?? "";
@@ -134,10 +154,14 @@ function TrackRow({ track, rank }) {
         <Text style={styles.rowName} numberOfLines={1}>{track.name}</Text>
         <Text style={styles.rowSub} numberOfLines={1}>{artistNames}</Text>
         <View style={styles.popRow}>
-          <View style={styles.popBar}>
-            <View style={[styles.popFill, { width: `${popularity}%` }]} />
+          <View style={styles.popTrack}>
+            <LinearGradient
+              colors={colorPair}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.popFill, { width: `${popularity}%` }]}
+            />
           </View>
-          <Text style={styles.popLabel}>{popularity} popularity</Text>
+          <Text style={styles.popLabel}>{popularity}</Text>
         </View>
       </View>
     </View>
@@ -150,21 +174,28 @@ const styles = StyleSheet.create({
   topBar: { marginBottom: 20, marginTop: 8 },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: COLORS.textPrimary },
 
-  tabContainer: { flexDirection: "row", backgroundColor: COLORS.surface, borderRadius: 12, padding: 4, marginBottom: 24 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
-  tabActive: { backgroundColor: COLORS.surfaceAlt },
-  tabText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600" },
+  tabContainer: {
+    flexDirection: "row", backgroundColor: COLORS.surface,
+    borderRadius: 16, padding: 4, marginBottom: 24, gap: 4,
+  },
+  tab: { flex: 1, borderRadius: 12, overflow: "hidden" },
+  tabActiveBg: { paddingVertical: 10, alignItems: "center", borderRadius: 12 },
+  tabText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600", textAlign: "center", paddingVertical: 10 },
   tabTextActive: { color: COLORS.textPrimary, fontWeight: "bold" },
 
-  scrollContent: { paddingBottom: 40, gap: 32 },
-  section: { gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary },
+  scrollContent: { paddingBottom: 40, gap: 28 },
+  section: { gap: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: COLORS.textPrimary, marginBottom: 4 },
   emptyText: { color: COLORS.textMuted, fontStyle: "italic", textAlign: "center", paddingVertical: 10 },
 
-  row: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.surface, borderRadius: 16, padding: 12, gap: 12 },
-  rank: { color: COLORS.primary, fontWeight: "900", fontSize: 15, width: 28, textAlign: "center" },
-  artistImg: { width: 56, height: 56, borderRadius: 28 },
-  trackImg: { width: 56, height: 56, borderRadius: 10 },
+  row: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: COLORS.surface, borderRadius: 16,
+    padding: 12, gap: 12,
+  },
+  rank: { color: COLORS.primary, fontWeight: "900", fontSize: 14, width: 26, textAlign: "center" },
+  artistImg: { width: 54, height: 54, borderRadius: 27 },
+  trackImg: { width: 54, height: 54, borderRadius: 10 },
   imgPlaceholder: { backgroundColor: COLORS.surfaceAlt, justifyContent: "center", alignItems: "center" },
   rowInfo: { flex: 1, gap: 4 },
   rowName: { color: COLORS.textPrimary, fontSize: 15, fontWeight: "600" },
@@ -172,7 +203,7 @@ const styles = StyleSheet.create({
   genres: { color: COLORS.textMuted, fontSize: 11 },
 
   popRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  popBar: { flex: 1, height: 4, backgroundColor: COLORS.surfaceAlt, borderRadius: 2 },
-  popFill: { height: 4, backgroundColor: COLORS.primary, borderRadius: 2 },
-  popLabel: { color: COLORS.textMuted, fontSize: 10, width: 80 },
+  popTrack: { flex: 1, height: 4, backgroundColor: COLORS.surfaceHigh, borderRadius: 2, overflow: "hidden" },
+  popFill: { height: 4, borderRadius: 2 },
+  popLabel: { color: COLORS.textMuted, fontSize: 10, width: 22, textAlign: "right" },
 });

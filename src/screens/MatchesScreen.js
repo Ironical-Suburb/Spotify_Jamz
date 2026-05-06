@@ -9,6 +9,8 @@ import { getMatches, getMatchOtherProfile } from "@services/matchService";
 import { createRoom } from "@services/roomService";
 import { COLORS } from "@constants";
 import { matchLabel, matchColor } from "@utils/similarity";
+import AvatarCircle from "@components/AvatarCircle";
+import GradientButton from "@components/GradientButton";
 
 export default function MatchesScreen({ navigation }) {
   const { user } = useAuth();
@@ -70,19 +72,23 @@ export default function MatchesScreen({ navigation }) {
 
   const renderMatch = ({ item }) => {
     const pct = item.score ?? 0;
-    const color = matchColor(pct / 100);
     const label = matchLabel(pct / 100);
     const isJamming = joiningId === item.id;
 
     return (
       <View style={styles.card}>
-        <View style={styles.cardLeft}>
-          <Text style={styles.emoji}>{item.other?.emoji ?? "🎵"}</Text>
-          <View style={styles.info}>
-            <Text style={styles.nickname}>{item.other?.nickname}</Text>
-            <Text style={[styles.pct, { color }]}>{pct}% match · {label}</Text>
+        <AvatarCircle name={item.other?.nickname} size={52} />
+
+        <View style={styles.info}>
+          <Text style={styles.nickname}>{item.other?.nickname}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.pctBadge}>
+              <Text style={styles.pctText}>{pct}%</Text>
+            </View>
+            <Text style={styles.label}>{label}</Text>
           </View>
         </View>
+
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={styles.chatBtn}
@@ -95,16 +101,15 @@ export default function MatchesScreen({ navigation }) {
           >
             <Text style={styles.chatBtnText}>💬</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.jamBtn}
+
+          <GradientButton
             onPress={() => handleJam(item)}
             disabled={!!joiningId}
-          >
-            {isJamming
-              ? <ActivityIndicator color={COLORS.background} size="small" />
-              : <Text style={styles.jamBtnText}>🎵 Jam</Text>
-            }
-          </TouchableOpacity>
+            loading={isJamming}
+            label="🎵 Jam"
+            gradientStyle={styles.jamGradient}
+            labelStyle={styles.jamLabel}
+          />
         </View>
       </View>
     );
@@ -131,37 +136,34 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 56, marginBottom: 16 },
   emptyTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: "bold", marginBottom: 8 },
   emptySub: { color: COLORS.textSecondary, fontSize: 14, textAlign: "center" },
+
   list: { padding: 16, gap: 12 },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  cardLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  emoji: { fontSize: 40, marginRight: 14 },
   info: { flex: 1 },
-  nickname: { color: COLORS.textPrimary, fontSize: 16, fontWeight: "bold", marginBottom: 4 },
-  pct: { fontSize: 12, fontWeight: "600" },
-  cardActions: { flexDirection: "row", gap: 8 },
+  nickname: { color: COLORS.textPrimary, fontSize: 16, fontWeight: "bold", marginBottom: 6 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  pctBadge: {
+    backgroundColor: COLORS.primary + "22",
+    borderWidth: 1, borderColor: COLORS.primary + "55",
+    borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  pctText: { color: COLORS.primary, fontSize: 11, fontWeight: "bold" },
+  label: { color: COLORS.textMuted, fontSize: 12 },
+
+  cardActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   chatBtn: {
     backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 50,
-    width: 42,
-    height: 42,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 50, width: 44, height: 44,
+    justifyContent: "center", alignItems: "center",
   },
   chatBtnText: { fontSize: 18 },
-  jamBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 50,
-    paddingHorizontal: 16,
-    height: 42,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  jamBtnText: { color: COLORS.background, fontWeight: "bold", fontSize: 13 },
+  jamGradient: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 50 },
+  jamLabel: { fontSize: 13, fontWeight: "bold" },
 });
